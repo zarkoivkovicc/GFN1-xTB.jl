@@ -57,32 +57,31 @@ function parseparams(rawdata::Array{String})
     BORH_TO_Å = parse(Float64, rawdata[1])
     EV_TO_AU = parse(Float64, rawdata[2])
     ntypes = parse(Int64, rawdata[3]) # number of atom types in paramteres file
-    el_ord_par = anumber.(split(rawdata[4])) #order of atoms in parameters file
-
+    indx = Dict{String,Int64}(split(rawdata[4]) .=> 1:ntypes) #index of elements for parameters
     #Zero order repulsion energy parameters
     k_f = parse(Float64, rawdata[5])
-    α = Dict(el_ord_par .=> parseline(Float64, rawdata[6]))
-    z_eff = Dict(el_ord_par .=> parseline(Float64, rawdata[7]))
+    α = parseline(Float64, rawdata[6])
+    z_eff = parseline(Float64, rawdata[7])
 
     #Dispersion parameters
     a1, a2, s6, s8, k_cn, k_l = parseline(Float64, rawdata[8])
-    q_a = Dict(el_ord_par .=> parseline(Float64, rawdata[9]))
+    q_a = parseline(Float64, rawdata[9])
     unsc_radii = parseline(Float64, rawdata[10])
-    sc_radii = Dict(el_ord_par .=> 4 / 3 / BORH_TO_Å .* unsc_radii)
+    sc_radii = 4 / 3 / BORH_TO_Å .* unsc_radii
     max_numrefcn = parse(Int64, rawdata[11])
-    numrefcn = Dict(el_ord_par .=> parseline(Int64, rawdata[12]))
-    refcn = Dict{Int64,Array{Float64}}()
+    numrefcn = parseline(Int64, rawdata[12])
+    refcn = Matrix{Float64}(undef,max_numrefcn,max_numrefcn)
     for i in 1:ntypes
-        refcn[el_ord_par[i]] = parseline(Float64, rawdata[12+i])
+        refcn[1:numrefcn[i],i] = parseline(Float64, rawdata[12+i])
     end
     # 12 + ntypes of lines have been used
     global linenum = 12 + ntypes
-    c_ref = Dict{Tuple{Int64,Int64},Array{Float64,2}}()
+    c_ref = Matrix{Matrix{Float64}}(undef,ntypes,ntypes)
 
     for _ in 1:ntypes*(ntypes+1)/2
         temp = parseline(Int64, rawdata[linenum+1])[1:2]
-        index = (el_ord_par[temp[1]], el_ord_par[temp[2]])
-        c_ref[index] = parsematrix(numrefcn[index[1]], numrefcn[index[2]],
+        index = temp[1],temp[2]
+        c_ref[index[1],index[2]] = parsematrix(numrefcn[index[1]], numrefcn[index[2]],
             rawdata[linenum+2:linenum+2+numrefcn[index[1]]])
         global linenum += numrefcn[index[1]] + 1
     end
@@ -125,10 +124,10 @@ function parseparams(rawdata::Array{String})
         k_ll[index] = parse(Float64, temp[3])
     end
     linenum += nk_ll + 1
-    electroneg = Dict(el_ord_par .=> parseline(Float64, rawdata[linenum]))
-    k_en = Dict(el_ord_par .=> parseline(Float64, rawdata[linenum+1]))
-    r_cov = Dict(el_ord_par .=> parseline(Float64, rawdata[linenum+2]) ./ BORH_TO_Å)
-    γ = Dict(el_ord_par .=> parseline(Float64, rawdata[linenum+3]))
+    electroneg = parseline(Float64, rawdata[linenum])
+    k_en = parseline(Float64, rawdata[linenum+1])
+    r_cov = parseline(Float64, rawdata[linenum+2]) ./ BORH_TO_Å
+    γ = parseline(Float64, rawdata[linenum+3])
     linenum += 3
     std_sh_pop = Dict{Tuple{Int64,Int64},Int64}()
     η_a = Dict{Tuple{Int64,Int64},Float64}()
@@ -141,7 +140,7 @@ function parseparams(rawdata::Array{String})
         η_a[index], h_al[index], k_poli[index] = parse.(Float64, temp[2:end])
     end
     k_cn_l = parseline(Float64, rawdata[end])
-    return BORH_TO_Å, EV_TO_AU, k_f, α, z_eff, a1, a2, s6, s8, k_cn, k_l, q_a, sc_radii, numrefcn, refcn,
+    return BORH_TO_Å, EV_TO_AU, indx, k_f, α, z_eff, a1, a2, s6, s8, k_cn, k_l, q_a, sc_radii, numrefcn, refcn,
     c_ref, nprim, ζ, d, k_ab, nk_ll, k_ll, electroneg, k_en, r_cov, γ, std_sh_pop, η_a, h_al, k_poli, k_cn_l
 end
 
