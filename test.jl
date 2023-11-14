@@ -4,19 +4,18 @@ include("modules/method.jl")
 using LinearAlgebra: norm
 using .Parsers, .PeriodicTable, .Methods
 
-natoms, elementsym, coordinates = parsexyz("$binpath/tests/data/secbutylamine.xyz")
+natoms, elementsym, coordinates = parsexyz("$binpath/tests/data/methanol.xyz")
 
 # Load parameters
 BORH_TO_Å, EV_TO_AU, indx,
 k_f, α, z_eff, a1, a2, s6, s8, k_cn, k_l, q_a, sc_radii, numrefcn, refcn, c_ref,
-nprim, ζ, d, k_ab, nk_ll, k_ll,
+nprim, shtyp, ζ, d, k_ab, nk_ll, k_ll,
 electroneg, k_en, r_cov, γ, std_sh_pop, η_a, h_al, k_poli, k_cn_l = loadparams()
-id = map( x -> get(indx,x,-1),elementsym) # Element id for parameters
+id = map( x -> get(indx,x,-1),elementsym) # Each atom gets id of its type
 coordinates  ./= BORH_TO_Å # Convert to angstroms
-r = Matrix{Float64}(undef,natoms,natoms) #pairwise_distance
-for i in 1:natoms, j in i:natoms
-    r[j,i]  = norm(coordinates[:,j]-coordinates[:,i])
-end
+r = pairwise_distance(natoms,coordinates)
+basis_fun = gen_basisfun(natoms,id,shtyp)
+print(basis_fun)
 print("Repulsion energy: \n")
 print(E_rep(natoms, id, r, α, z_eff, k_f),'\n')
 print("Dispersion energy: \n")

@@ -85,19 +85,23 @@ function parseparams(rawdata::Array{String})
             rawdata[linenum+2:linenum+2+numrefcn[index[1]]])
         global linenum += numrefcn[index[1]] + 1
     end
+
     # Basis set parameters
-    nprim = Dict{Tuple{Int64,Int64},Int64}()
-    ζ = Dict{Tuple{Int64,Int64},Array{Float64}}()
-    d = Dict{Tuple{Int64,Int64},Array{Float64}}()
+    k_cn_l = parseline(Float64, rawdata[end]) # must be parsed here for efficient allocation of matrices
+    nshtyp::Int64 = length(k_cn_l) # number of shell types
+    shtyp = [Vector{Int64}() for _ = 1:ntypes] 
+    nprim = [Vector{Int64}() for _ = 1:ntypes]
+    ζ = [Vector{Vector{Float64}}() for _ = 1:ntypes]
+    d = [Vector{Vector{Float64}}() for _ = 1:ntypes]
     linenum += 1 # Go to the next line
     global totnsh = 0 # total number of shells
     while true
-        index..., np = parseline(Int64, rawdata[linenum])
-        index = Tuple(index)
+        index, sh, np = parseline(Int64, rawdata[linenum])
         if np == length(parseline(Float64, rawdata[linenum+1])) == length(parseline(Float64, rawdata[linenum+2]))
-            nprim[index] = np
-            ζ[index] = parseline(Float64, rawdata[linenum+1])
-            d[index] = parseline(Float64, rawdata[linenum+2])
+            push!(nprim[index],np)
+            push!(shtyp[index],sh)
+            push!(ζ[index],parseline(Float64, rawdata[linenum+1]))
+            push!(d[index],parseline(Float64, rawdata[linenum+2]))
         else
             break
         end
@@ -117,11 +121,11 @@ function parseparams(rawdata::Array{String})
     end
 
     nk_ll = parse(Int64, rawdata[linenum]) # number of k_ll parameters
-    k_ll = Dict{Tuple{Int64,Int64},Float64}()
+    k_ll = Matrix{Float64}(undef,nshtyp,nshtyp)
     for i in 1:nk_ll
         temp = split(rawdata[linenum+i])
-        index = Tuple(parse.(Int64, temp[1:2]))
-        k_ll[index] = parse(Float64, temp[3])
+        index = parse.(Int64, temp[1:2])
+        k_ll[index[1],index[2]] = parse(Float64, temp[3])
     end
     linenum += nk_ll + 1
     electroneg = parseline(Float64, rawdata[linenum])
@@ -129,19 +133,20 @@ function parseparams(rawdata::Array{String})
     r_cov = parseline(Float64, rawdata[linenum+2]) ./ BORH_TO_Å
     γ = parseline(Float64, rawdata[linenum+3])
     linenum += 3
-    std_sh_pop = Dict{Tuple{Int64,Int64},Int64}()
-    η_a = Dict{Tuple{Int64,Int64},Float64}()
-    h_al = Dict{Tuple{Int64,Int64},Float64}()
-    k_poli = Dict{Tuple{Int64,Int64},Float64}()
+    std_sh_pop = Matrix{Int64}(undef,ntypes,nshtyp)
+    η_a = Matrix{Float64}(undef,ntypes,nshtyp)
+    h_al = Matrix{Float64}(undef,ntypes,nshtyp)
+    k_poli = Matrix{Float64}(undef,ntypes,nshtyp)
     for i in 1:totnsh
         a, l, temp... = split(rawdata[linenum+i])
-        index = (parse(Int64, a), parse(Int64, l))
-        std_sh_pop[index] = parse(Int64, temp[1])
-        η_a[index], h_al[index], k_poli[index] = parse.(Float64, temp[2:end])
+        index = parse(Int64, a), parse(Int64, l)
+        std_sh_pop[index[1],index[2]] = parse(Int64, temp[1])
+        η_a[index[1],index[2]], h_al[index[1],index[2]], k_poli[index[1],index[2]] = parse.(Float64, temp[2:end])
     end
-    k_cn_l = parseline(Float64, rawdata[end])
-    return BORH_TO_Å, EV_TO_AU, indx, k_f, α, z_eff, a1, a2, s6, s8, k_cn, k_l, q_a, sc_radii, numrefcn, refcn,
-    c_ref, nprim, ζ, d, k_ab, nk_ll, k_ll, electroneg, k_en, r_cov, γ, std_sh_pop, η_a, h_al, k_poli, k_cn_l
+    return BORH_TO_Å, EV_TO_AU, indx,
+    k_f, α, z_eff, a1, a2, s6, s8, k_cn, k_l, q_a, sc_radii, numrefcn, refcn, c_ref,
+    nprim, shtyp, ζ, d, k_ab, nk_ll, k_ll,
+    electroneg, k_en, r_cov, γ, std_sh_pop, η_a, h_al, k_poli, k_cn_l
 end
 
 """

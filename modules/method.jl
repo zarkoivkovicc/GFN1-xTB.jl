@@ -1,5 +1,13 @@
 module Methods
-export E_rep, E_disp
+using LinearAlgebra: norm
+export pairwise_distance, E_rep, E_disp, gen_basisfun
+function pairwise_distance(natoms :: Int64, coords :: Matrix{Float64})
+    r = Matrix{Float64}(undef,natoms,natoms) #pairwise_distance
+    for i in 1:natoms, j in i:natoms
+        r[j,i]  = norm(coords[:,j]-coords[:,i])
+    end
+    return r
+end
 function E_rep(natoms :: Int64, id :: Vector{Int64}, r :: Matrix{Float64},
     α :: Vector{Float64}, z_eff :: Vector{Float64}, k_f :: Float64)
     E_rep ::Float64 = 0
@@ -13,7 +21,6 @@ function E_disp(natoms :: Int64, id :: Vector{Int64}, r :: Matrix{Float64},
     a1 :: Float64, a2 :: Float64, s6 :: Float64, s8 :: Float64, k_cn :: Float64, k_l :: Float64,
     q_a :: Vector{Float64}, sc_radii :: Vector{Float64}, numrefcn :: Vector{Int64},
     refcn :: Matrix{Float64}, c_ref :: Matrix{Matrix{Float64}})
-
     function f6_damp(r::Float64,a1::Float64,a2::Float64,q_a::Float64,q_b::Float64)
         return r^6/
         (r^6+(a1*(9q_a*q_b)^0.25+a2)^6)
@@ -53,5 +60,26 @@ function E_disp(natoms :: Int64, id :: Vector{Int64}, r :: Matrix{Float64},
         s8*3*√(q_a[id[j]]q_a[id[i]])*c6(id[j],id[i],cn(j,r),cn(i,r),refcn)/r[j,i]^8*f8_damp(r[j,i],a1,a2,q_a[id[j]],q_a[id[i]])
     end
     return E_disp
+end
+function gen_basisfun(natoms:: Int64, id :: Vector{Int64}, shtyp:: Vector{Vector{Int64}})
+    basis_functions = Vector{Vector{Int64}}()
+    for i in 1:natoms, sh in shtyp[id[i]]
+        if sh == 1 || sh == 2
+            push!(basis_functions,[i,sh,0])
+        elseif sh ==3
+            push!(basis_functions,[i,sh,1])
+            push!(basis_functions,[i,sh,2])
+            push!(basis_functions,[i,sh,3])
+        end
+    end
+    return basis_functions
+end
+function nbasisf(id::Vector{Int64},shtyp :: Vector{Vector{Int64}})
+    n = 0
+    nbasis_per_type :: Vector{Int64} = [1,1,3] # 1 s, 1 s', 3 p orbitals
+    for i in id, j in shtyp[i]
+        n += nbasis_per_type[j]
+    end
+    return n
 end
 end
