@@ -1,16 +1,16 @@
 module Methods
-using LinearAlgebra: norm, Hermitian, Diagonal, eigen
+using LinearAlgebra: norm, Hermitian, Diagonal, eigen, ⋅
 using  Memoization: @memoize
-export pairwise_distance, E_rep, E_disp, gen_basisfun_shells, overlapmatrix,
-S_inv_sqrt, gen_H_0, gen_γ_abllp
-function pairwise_distance(natoms :: Int64, coords :: Matrix{Float64})
+export get_distances, get_E_rep, get_E_disp, get_basisfun_shells, get_S, get_F!,
+Inv_sqrt, get_H_0, get_γ_abllp
+function get_distances(natoms :: Int64, coords :: Matrix{Float64})
     r = Matrix{Float64}(undef,natoms,natoms) #pairwise_distance
     for i in 1:natoms, j in i:natoms
         r[j,i]  = norm(coords[:,j]-coords[:,i])
     end
     return r
 end
-function E_rep(natoms :: Int64, id :: Vector{Int64}, r :: Matrix{Float64},
+function get_E_rep(natoms :: Int64, id :: Vector{Int64}, r :: Matrix{Float64},
     α :: Vector{Float64}, z_eff :: Vector{Float64}, k_f :: Float64)
     E_rep ::Float64 = 0
     for i in 1:natoms, j in i+1:natoms
@@ -29,7 +29,7 @@ function cn(a::Int64,natoms::Int64, id :: Vector{Int64}, r::Matrix{Float64},sc_r
     end
     return res
 end
-function E_disp(natoms :: Int64, id :: Vector{Int64}, r :: Matrix{Float64},
+function get_E_disp(natoms :: Int64, id :: Vector{Int64}, r :: Matrix{Float64},
     a1 :: Float64, a2 :: Float64, s6 :: Float64, s8 :: Float64, k_cn :: Float64, k_l :: Float64,
     q_a :: Vector{Float64}, sc_radii :: Vector{Float64}, numrefcn :: Vector{Int64},
     refcn :: Matrix{Float64}, c_ref :: Matrix{Matrix{Float64}})
@@ -65,22 +65,24 @@ function E_disp(natoms :: Int64, id :: Vector{Int64}, r :: Matrix{Float64},
     end
     return E_disp
 end
-function gen_basisfun_shells(natoms:: Int64, id :: Vector{Int64}, shtyp:: Vector{Vector{Int64}})
+function get_basisfun_shells(natoms:: Int64, id :: Vector{Int64}, shtyp:: Vector{Vector{Int64}})
     basis_functions = Vector{Vector{Int64}}()
     shells = Vector{Vector{Int64}}()
+    index = 1
     for i in 1:natoms, sh in shtyp[id[i]]
         push!(shells,[i,sh])
         if sh == 1 || sh == 2
-            push!(basis_functions,[i,sh,0])
+            push!(basis_functions,[i,sh,0,index])
         elseif sh ==3
-            push!(basis_functions,[i,sh,1])
-            push!(basis_functions,[i,sh,2])
-            push!(basis_functions,[i,sh,3])
+            push!(basis_functions,[i,sh,1,index])
+            push!(basis_functions,[i,sh,2,index])
+            push!(basis_functions,[i,sh,3,index])
         end
+        index +=1
     end
     return basis_functions, shells
 end
-function overlapmatrix(basis_fun :: Vector{Vector{Int64}},
+function get_S(basis_fun :: Vector{Vector{Int64}},
     id ::Vector{Int64},
     shtyp:: Vector{Vector{Int64}},
     coord :: Matrix{Float64},
@@ -131,11 +133,11 @@ function overlapmatrix(basis_fun :: Vector{Vector{Int64}},
     end
     return Hermitian(S)
 end
-function S_inv_sqrt(S :: Hermitian{Float64})
+function Inv_sqrt(S :: Hermitian{Float64})
     λ, L = eigen(S)
     return L * Diagonal(1 ./ sqrt.(λ)) * L'
 end
-function gen_H_0(basis_fun:: Vector{Vector{Int64}},natoms::Int64, r::Matrix{Float64}, id :: Vector{Int64},
+function get_H_0(basis_fun:: Vector{Vector{Int64}},natoms::Int64, r::Matrix{Float64}, id :: Vector{Int64},
     k_ab :: Dict{Tuple{Int64,Int64,Int64,Int64},Float64},k_ll:: Matrix{Float64},
     electroneg :: Vector{Float64}, k_en :: Float64, r_cov :: Vector{Float64},h_al::Matrix{Float64},
     k_poli::Matrix{Float64}, k_cn_l :: Vector{Float64},
@@ -151,13 +153,13 @@ function gen_H_0(basis_fun:: Vector{Vector{Int64}},natoms::Int64, r::Matrix{Floa
             return (1+k_poli[id[bf1[1]],bf1[2]]*(r[bf2[1],bf1[1]]/(r_cov[id[bf1[1]]]+r_cov[id[bf2[1]]]))^0.5)*
             (1+k_poli[id[bf2[1]],bf2[2]]*(r[bf2[1],bf1[1]]/(r_cov[id[bf1[1]]]+r_cov[id[bf2[1]]]))^0.5)
         end
-        K = get(k_ab,(id[bf1[1]],bf1[2],bf2[1],bf2[2]),1.0)
+        K = get(k_ab,(id[bf1[1]],bf1[2],id[bf2[1]],bf2[2]),1.0)
         indx1, indx2 = min(bf1[2],bf2[2]), max(bf1[2],bf2[2])
         k_llp = k_ll[indx1,indx2]
         h_al1 = h_al[id[bf1[1]],bf1[2]]*(1+k_cn_l[bf1[2]]*cn(bf1[1],natoms,id,r,sc_radii,k_cn))
-        h_al2 = h_al[id[bf2[1]],bf2[2]]*(1+k_cn_l[bf2[2]]*cn(bf2[1],natoms,id,r,sc_radii,k_cn)) 
-        if bf1[2] == bf2[2] == 2
-            off_diag_scal = 0
+        h_al2 = h_al[id[bf2[1]],bf2[2]]*(1+k_cn_l[bf2[2]]*cn(bf2[1],natoms,id,r,sc_radii,k_cn))
+        if bf1[2] == 2 || bf2[2] == 2
+            off_diag_scal::Float64 = 1
         else
             off_diag_scal = 1 + k_en*(electroneg[id[bf1[1]]] - electroneg[id[bf2[1]]])^2
         end
@@ -180,7 +182,7 @@ function gen_H_0(basis_fun:: Vector{Vector{Int64}},natoms::Int64, r::Matrix{Floa
     end
     return Hermitian(H_0)
 end
-function gen_γ_abllp(shells :: Vector{Vector{Int64}}, r :: Matrix{Float64},id :: Vector{Int64},
+function get_γ_abllp(shells :: Vector{Vector{Int64}}, r :: Matrix{Float64},id :: Vector{Int64},
     η_al :: Matrix{Float64},k_g :: Float64 = 2.0)
     dim = length(shells)
     res = Matrix{Float64}(undef,dim,dim)
@@ -194,5 +196,26 @@ function gen_γ_abllp(shells :: Vector{Vector{Int64}}, r :: Matrix{Float64},id :
     end
     return res
 end
-
+function get_F!(F :: Matrix{Float64},shell_charges:: Vector{Float64},atomic_charges:: Vector{Float64},
+    γ:: Matrix{Float64},Γ::Vector{Float64},H_0:: Hermitian{Float64},S:: Hermitian{Float64},
+    basis_fun:: Vector{Vector{Int64}},id :: Vector{Int64})
+    function F_(μ :: Int64, ν :: Int64, basis_fun:: Vector{Vector{Int64}},shell_charges:: Vector{Float64},
+        atomic_charges:: Vector{Float64},γ:: Matrix{Float64},Γ::Vector{Float64},
+        H_0:: Hermitian{Float64},S:: Hermitian{Float64},id :: Vector{Int64})
+        function δϵ_al(sh_indx ::Int64,γ::Matrix{Float64}, shell_charges:: Vector{Float64})
+            return γ[sh_indx,:]⋅shell_charges
+        end
+        function δΕ_al(a :: Int64,id::Vector{Int64},Γ::Vector{Float64}, atomic_charges:: Vector{Float64})
+            return Γ[id[a]]*atomic_charges[a]^2
+        end
+        return H_0[μ,ν] - 0.5*S[μ,ν]*(δϵ_al(basis_fun[μ][4],γ,shell_charges)
+                                    + δϵ_al(basis_fun[ν][4],γ,shell_charges)
+                                    + δΕ_al(basis_fun[μ][1],id,Γ,atomic_charges)
+                                    + δΕ_al(basis_fun[ν][1],id,Γ,atomic_charges))
+    end
+    dim = size(S)
+    for i in 1:dim[1], j in 1:dim[1]
+        F[i,j] = F_(i,j,basis_fun,shell_charges,atomic_charges,γ,Γ,H_0,S,id)
+    end
+end
 end

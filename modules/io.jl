@@ -133,7 +133,7 @@ function parseparams(rawdata::Array{String})
     electroneg = parseline(Float64, rawdata[linenum])
     k_en = parse(Float64, rawdata[linenum+1])
     r_cov = parseline(Float64, rawdata[linenum+2]) ./ BORH_TO_Å
-    γ = parseline(Float64, rawdata[linenum+3])
+    Γ = parseline(Float64, rawdata[linenum+3])
     linenum += 3
     std_sh_pop = Matrix{Int64}(undef,ntypes,nshtyp)
     η_al = Matrix{Float64}(undef,ntypes,nshtyp)
@@ -149,7 +149,7 @@ function parseparams(rawdata::Array{String})
     return BORH_TO_Å, AU_TO_EV, indx,
     k_f, α, z_eff, a1, a2, s6, s8, k_cn, k_l, q_a, sc_radii, numrefcn, refcn, c_ref,
     nprim, shtyp, ζ, d, k_ab, nk_ll, k_ll,
-    electroneg, k_en, r_cov, γ, std_sh_pop, η_al, h_al, k_poli, k_cn_l
+    electroneg, k_en, r_cov, Γ, std_sh_pop, η_al, h_al, k_poli, k_cn_l
 end
 
 """
