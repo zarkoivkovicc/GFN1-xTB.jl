@@ -55,7 +55,7 @@ end
 
 function parseparams(rawdata::Array{String})
     BORH_TO_Å = parse(Float64, rawdata[1])
-    EV_TO_AU = parse(Float64, rawdata[2])
+    AU_TO_EV = parse(Float64, rawdata[2])
     ntypes = parse(Int64, rawdata[3]) # number of atom types in paramteres file
     indx = Dict{String,Int64}(split(rawdata[4]) .=> 1:ntypes) #index of elements for parameters
     #Zero order repulsion energy parameters
@@ -112,8 +112,10 @@ function parseparams(rawdata::Array{String})
     while true
         temp = split(rawdata[linenum])
         if length(temp) == 5
-            index = Tuple(parse.(Int64, temp[1:4]))
-            k_ab[index] = parse(Float64, temp[5])
+            index1 = Tuple(parse.(Int64, temp[1:4]))
+            index2 = (index1[3],index1[4],index1[1],index1[2])
+            k_ab[index1] = parse(Float64, temp[5])
+            k_ab[index2] = parse(Float64, temp[5])
         else
             break
         end
@@ -129,7 +131,7 @@ function parseparams(rawdata::Array{String})
     end
     linenum += nk_ll + 1
     electroneg = parseline(Float64, rawdata[linenum])
-    k_en = parseline(Float64, rawdata[linenum+1])
+    k_en = parse(Float64, rawdata[linenum+1])
     r_cov = parseline(Float64, rawdata[linenum+2]) ./ BORH_TO_Å
     γ = parseline(Float64, rawdata[linenum+3])
     linenum += 3
@@ -143,7 +145,8 @@ function parseparams(rawdata::Array{String})
         std_sh_pop[index[1],index[2]] = parse(Int64, temp[1])
         η_a[index[1],index[2]], h_al[index[1],index[2]], k_poli[index[1],index[2]] = parse.(Float64, temp[2:end])
     end
-    return BORH_TO_Å, EV_TO_AU, indx,
+    h_al = h_al ./ AU_TO_EV
+    return BORH_TO_Å, AU_TO_EV, indx,
     k_f, α, z_eff, a1, a2, s6, s8, k_cn, k_l, q_a, sc_radii, numrefcn, refcn, c_ref,
     nprim, shtyp, ζ, d, k_ab, nk_ll, k_ll,
     electroneg, k_en, r_cov, γ, std_sh_pop, η_a, h_al, k_poli, k_cn_l
