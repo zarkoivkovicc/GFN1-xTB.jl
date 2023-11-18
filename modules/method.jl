@@ -1,7 +1,8 @@
 module Methods
 using LinearAlgebra: norm, Hermitian, Diagonal, eigen
 using  Memoization: @memoize
-export pairwise_distance, E_rep, E_disp, gen_basisfun, overlapmatrix, S_inv_sqrt, gen_H_0
+export pairwise_distance, E_rep, E_disp, gen_basisfun_shells, overlapmatrix,
+S_inv_sqrt, gen_H_0, gen_γ_abllp
 function pairwise_distance(natoms :: Int64, coords :: Matrix{Float64})
     r = Matrix{Float64}(undef,natoms,natoms) #pairwise_distance
     for i in 1:natoms, j in i:natoms
@@ -64,9 +65,11 @@ function E_disp(natoms :: Int64, id :: Vector{Int64}, r :: Matrix{Float64},
     end
     return E_disp
 end
-function gen_basisfun(natoms:: Int64, id :: Vector{Int64}, shtyp:: Vector{Vector{Int64}})
+function gen_basisfun_shells(natoms:: Int64, id :: Vector{Int64}, shtyp:: Vector{Vector{Int64}})
     basis_functions = Vector{Vector{Int64}}()
+    shells = Vector{Vector{Int64}}()
     for i in 1:natoms, sh in shtyp[id[i]]
+        push!(shells,[i,sh])
         if sh == 1 || sh == 2
             push!(basis_functions,[i,sh,0])
         elseif sh ==3
@@ -75,7 +78,7 @@ function gen_basisfun(natoms:: Int64, id :: Vector{Int64}, shtyp:: Vector{Vector
             push!(basis_functions,[i,sh,3])
         end
     end
-    return basis_functions
+    return basis_functions, shells
 end
 function overlapmatrix(basis_fun :: Vector{Vector{Int64}},
     id ::Vector{Int64},
@@ -169,15 +172,27 @@ function gen_H_0(basis_fun:: Vector{Vector{Int64}},natoms::Int64, r::Matrix{Floa
             return K*k_llp*(h_al1+h_al2)/2*S*off_diag_scal*pii
         end
     end
-
-    H_0 = Matrix{Float64}(undef,size(S)...)
     dim = length(basis_fun)
+    H_0 = Matrix{Float64}(undef,dim,dim)
     for i in 1:dim, j in i:dim
         H_0[j,i] = H_0[i,j] = zeroh(basis_fun[i],basis_fun[j],natoms,r,id,k_ab,k_ll,electroneg,
         k_en,r_cov,h_al,k_poli,k_cn_l,sc_radii,k_cn,S[i,j])
     end
     return Hermitian(H_0)
 end
-
+function gen_γ_abllp(shells :: Vector{Vector{Int64}}, r :: Matrix{Float64},id :: Vector{Int64},
+    η_al :: Matrix{Float64},k_g :: Float64 = 2.0)
+    dim = length(shells)
+    res = Matrix{Float64}(undef,dim,dim)
+    function γ_abllp(sh1 :: Vector{Int64}, sh2 :: Vector{Int64}, r :: Matrix{Float64},id :: Vector{Int64},
+        η_al :: Matrix{Float64},k_g :: Float64 = 2.0)
+        η1 = η_al[id[sh1[1]],sh1[2]]; η2 = η_al[id[sh2[1]],sh2[2]]
+        return (r[sh2[1],sh1[1]]^k_g+(0.5*(1/η1 + 1/η2))^k_g)^(-1/k_g)
+    end
+    for i in 1:dim, j in 1:dim
+        res[i,j] = γ_abllp(shells[i],shells[j],r,id,η_al)
+    end
+    return res
+end
 
 end
