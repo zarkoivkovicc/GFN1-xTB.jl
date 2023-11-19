@@ -52,7 +52,11 @@ function parsematrix(dim1::Int64, dim2::Int64, rawmatrix::Array{String})
     end
     return matrix
 end
+"""Internal function to parse all parameters from raw input of lines.
 
+Input: rawdata::Vector{String}
+Output: parameters::Tuple
+"""
 function parseparams(rawdata::Array{String})
     BORH_TO_Å = parse(Float64, rawdata[1])
     AU_TO_EV = parse(Float64, rawdata[2])

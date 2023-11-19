@@ -1,7 +1,7 @@
 module Methods
 using LinearAlgebra: norm, Hermitian, Diagonal, eigen, ⋅
 using  Memoization: @memoize
-export get_distances, get_E_rep, get_E_disp, get_basisfun_shells, get_S, get_F!,
+export get_distances, get_E_rep, get_E_disp, get_basisfun_shells, get_S, get_F, get_nelec, get_P,
 Inv_sqrt, get_H_0, get_γ_abllp
 function get_distances(natoms :: Int64, coords :: Matrix{Float64})
     r = Matrix{Float64}(undef,natoms,natoms) #pairwise_distance
@@ -9,6 +9,13 @@ function get_distances(natoms :: Int64, coords :: Matrix{Float64})
         r[j,i]  = norm(coords[:,j]-coords[:,i])
     end
     return r
+end
+function get_nelec(std_sh_pop::Matrix{Int64},shells:: Vector{Vector{Int64}},id::Vector{Int64})
+    nelec::Int64 = 0
+    for sh in shells
+        nelec += std_sh_pop[id[sh[1]],sh[2]]
+    end
+    return nelec
 end
 function get_E_rep(natoms :: Int64, id :: Vector{Int64}, r :: Matrix{Float64},
     α :: Vector{Float64}, z_eff :: Vector{Float64}, k_f :: Float64)
@@ -69,16 +76,18 @@ function get_basisfun_shells(natoms:: Int64, id :: Vector{Int64}, shtyp:: Vector
     basis_functions = Vector{Vector{Int64}}()
     shells = Vector{Vector{Int64}}()
     index = 1
-    for i in 1:natoms, sh in shtyp[id[i]]
-        push!(shells,[i,sh])
-        if sh == 1 || sh == 2
-            push!(basis_functions,[i,sh,0,index])
-        elseif sh ==3
-            push!(basis_functions,[i,sh,1,index])
-            push!(basis_functions,[i,sh,2,index])
-            push!(basis_functions,[i,sh,3,index])
+    for i in 1:natoms
+        for sh in shtyp[id[i]]
+            push!(shells,[i,sh])
+            if sh == 1 || sh == 2
+                push!(basis_functions,[i,sh,0,index])
+            elseif sh ==3
+                push!(basis_functions,[i,sh,1,index])
+                push!(basis_functions,[i,sh,2,index])
+                push!(basis_functions,[i,sh,3,index])
+            end
+            index +=1
         end
-        index +=1
     end
     return basis_functions, shells
 end
@@ -196,7 +205,7 @@ function get_γ_abllp(shells :: Vector{Vector{Int64}}, r :: Matrix{Float64},id :
     end
     return res
 end
-function get_F!(F :: Matrix{Float64},shell_charges:: Vector{Float64},atomic_charges:: Vector{Float64},
+function get_F(shell_charges:: Vector{Float64},atomic_charges:: Vector{Float64},
     γ:: Matrix{Float64},Γ::Vector{Float64},H_0:: Hermitian{Float64},S:: Hermitian{Float64},
     basis_fun:: Vector{Vector{Int64}},id :: Vector{Int64})
     function F_(μ :: Int64, ν :: Int64, basis_fun:: Vector{Vector{Int64}},shell_charges:: Vector{Float64},
@@ -214,8 +223,21 @@ function get_F!(F :: Matrix{Float64},shell_charges:: Vector{Float64},atomic_char
                                     + δΕ_al(basis_fun[ν][1],id,Γ,atomic_charges))
     end
     dim = size(S)
+    F = Matrix{Float64}(undef,size(S)...)
     for i in 1:dim[1], j in 1:dim[1]
         F[i,j] = F_(i,j,basis_fun,shell_charges,atomic_charges,γ,Γ,H_0,S,id)
     end
+    return F
+end
+function get_P(nelec::Int64,C::Matrix{Float64})
+    dim = size(C)[1]
+    n_occ::Int64 = nelec/2
+    P::Matrix{Float64} = zeros(dim,dim)
+    for i in 1:dim, j in i:dim
+        P[i,j] += C[i,1:n_occ]⋅C[j,1:n_occ]
+        P[j,i] = P[i,j]
+    end
+    P *= 2
+    return P
 end
 end

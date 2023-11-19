@@ -8,7 +8,7 @@ using ArgParse, Memoization
 using LinearAlgebra: norm, eigen, Hermitian, Diagonal, ⋅, Transpose
 using Printf
 using .Parsers, .PeriodicTable, .Methods
-
+charge::Int64 = 0
 natoms, elementsym, coordinates = parsexyz("$binpath/tests/data/methanol.xyz")
 
 # Load parameters
@@ -22,18 +22,27 @@ r = get_distances(natoms,coordinates)
 basis_fun, shells = get_basisfun_shells(natoms,id,shtyp)
 # basis function is represented as (atom,sh_type,orientation,sh_index)
 # shell of an atom is represented as (atom,sh_type)
+
+nelec = get_nelec(std_sh_pop,shells,id)
 S = get_S(basis_fun,id,shtyp,coordinates,ζ,d)
 S_sqrt_inv = Inv_sqrt(S)
 H_0 = get_H_0(basis_fun,natoms,r,id,k_ab,k_ll,electroneg,k_en,r_cov,h_al,k_poli,k_cn_l,sc_radii,k_cn,S)
 γ_shpairs = get_γ_abllp(shells,r,id,η_al)
 C = Matrix{Float64}(undef,size(S)...)
-F = Matrix{Float64}(undef,size(S)...)
 Fp = Matrix{Float64}(undef,size(S)...)
 atomic_charges:: Vector{Float64} = zeros(natoms)
 shell_charges:: Vector{Float64} = zeros(length(shells))
-get_F!(F,shell_charges,atomic_charges,γ_shpairs,Γ,H_0,S,basis_fun,id)
+F = get_F(shell_charges,atomic_charges,γ_shpairs,Γ,H_0,S,basis_fun,id)
 Fp = S_sqrt_inv'*H_0*S_sqrt_inv
+E, Cp = eigen(Fp,sortby=nothing)
+C = S_sqrt_inv*Cp
+dperm = sortperm(E)
+iperm = invperm(dperm)
+E = E[dperm]
+C = C[:,dperm]
 
+P = get_P(nelec,C)
+display(P)
 
 #print("Repulsion energy: \n")
 #print(E_rep(natoms, id, r, α, z_eff, k_f),'\n')
