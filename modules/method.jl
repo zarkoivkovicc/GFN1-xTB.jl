@@ -1,8 +1,8 @@
 module Methods
 using LinearAlgebra: norm, Hermitian, Diagonal, eigen, ⋅
 using  Memoization: @memoize
-export get_distances, get_E_rep, get_E_disp, get_basisfun_shells, get_S, get_F, get_nelec, get_P,
-Inv_sqrt, get_H_0, get_γ_abllp
+export get_distances, get_E_rep, get_E_disp, get_basisfun_shells, get_S, get_eigen_from_F, get_nelec, get_P!,
+Inv_sqrt, get_H_0, get_γ_abllp, get_F!,get_shell_charges!,get_atomic_charges!
 function get_distances(natoms :: Int64, coords :: Matrix{Float64})
     r = Matrix{Float64}(undef,natoms,natoms) #pairwise_distance
     for i in 1:natoms, j in i:natoms
@@ -75,21 +75,28 @@ end
 function get_basisfun_shells(natoms:: Int64, id :: Vector{Int64}, shtyp:: Vector{Vector{Int64}})
     basis_functions = Vector{Vector{Int64}}()
     shells = Vector{Vector{Int64}}()
-    index = 1
+    shells_bf = Vector{Vector{Int64}}()
+    indxsh::Int64 = 1
+    indxbf::Int64 = 1
     for i in 1:natoms
         for sh in shtyp[id[i]]
-            push!(shells,[i,sh])
+            temp :: Vector{Int64} = [indxbf,]
             if sh == 1 || sh == 2
-                push!(basis_functions,[i,sh,0,index])
+                push!(basis_functions,[i,sh,0,indxsh])
+                indxbf += 1
             elseif sh ==3
-                push!(basis_functions,[i,sh,1,index])
-                push!(basis_functions,[i,sh,2,index])
-                push!(basis_functions,[i,sh,3,index])
+                push!(basis_functions,[i,sh,1,indxsh])
+                push!(basis_functions,[i,sh,2,indxsh])
+                push!(basis_functions,[i,sh,3,indxsh])
+                temp = collect(indxbf:indxbf+2)
+                indxbf += 3
             end
-            index +=1
+            push!(shells,[i,sh])
+            push!(shells_bf,temp)
+            indxsh +=1
         end
     end
-    return basis_functions, shells
+    return basis_functions, shells, shells_bf
 end
 function get_S(basis_fun :: Vector{Vector{Int64}},
     id ::Vector{Int64},
@@ -170,7 +177,7 @@ function get_H_0(basis_fun:: Vector{Vector{Int64}},natoms::Int64, r::Matrix{Floa
         if bf1[2] == 2 || bf2[2] == 2
             off_diag_scal::Float64 = 1
         else
-            off_diag_scal = 1 + k_en*(electroneg[id[bf1[1]]] - electroneg[id[bf2[1]]])^2
+            off_diag_scal = 1.0 + k_en*(electroneg[id[bf1[1]]] - electroneg[id[bf2[1]]])^2
         end
         if bf1[1] == bf2[1]
             if bf1 == bf2
@@ -179,8 +186,7 @@ function get_H_0(basis_fun:: Vector{Vector{Int64}},natoms::Int64, r::Matrix{Floa
                 return 0
             end
         else
-            pii = Π(bf1,bf2,r,id,k_poli,r_cov)
-            return K*k_llp*(h_al1+h_al2)/2*S*off_diag_scal*pii
+            return K*k_llp*(h_al1+h_al2)/2*S*off_diag_scal*Π(bf1,bf2,r,id,k_poli,r_cov)
         end
     end
     dim = length(basis_fun)
@@ -200,14 +206,15 @@ function get_γ_abllp(shells :: Vector{Vector{Int64}}, r :: Matrix{Float64},id :
         η1 = η_al[id[sh1[1]],sh1[2]]; η2 = η_al[id[sh2[1]],sh2[2]]
         return (r[sh2[1],sh1[1]]^k_g+(0.5*(1/η1 + 1/η2))^k_g)^(-1/k_g)
     end
-    for i in 1:dim, j in 1:dim
-        res[i,j] = γ_abllp(shells[i],shells[j],r,id,η_al)
+    for i in 1:dim, j in i:dim
+        res[j,i] = res[i,j] = γ_abllp(shells[i],shells[j],r,id,η_al)
     end
     return res
 end
-function get_F(shell_charges:: Vector{Float64},atomic_charges:: Vector{Float64},
+function get_F!(F::Matrix{Float64},shell_charges:: Vector{Float64},atomic_charges:: Vector{Float64},
     γ:: Matrix{Float64},Γ::Vector{Float64},H_0:: Hermitian{Float64},S:: Hermitian{Float64},
     basis_fun:: Vector{Vector{Int64}},id :: Vector{Int64})
+    #ERROR PROBABBLY HERE FOR SCF
     function F_(μ :: Int64, ν :: Int64, basis_fun:: Vector{Vector{Int64}},shell_charges:: Vector{Float64},
         atomic_charges:: Vector{Float64},γ:: Matrix{Float64},Γ::Vector{Float64},
         H_0:: Hermitian{Float64},S:: Hermitian{Float64},id :: Vector{Int64})
@@ -217,27 +224,63 @@ function get_F(shell_charges:: Vector{Float64},atomic_charges:: Vector{Float64},
         function δΕ_al(a :: Int64,id::Vector{Int64},Γ::Vector{Float64}, atomic_charges:: Vector{Float64})
             return Γ[id[a]]*atomic_charges[a]^2
         end
-        return H_0[μ,ν] - 0.5*S[μ,ν]*(δϵ_al(basis_fun[μ][4],γ,shell_charges)
-                                    + δϵ_al(basis_fun[ν][4],γ,shell_charges)
-                                    + δΕ_al(basis_fun[μ][1],id,Γ,atomic_charges)
-                                    + δΕ_al(basis_fun[ν][1],id,Γ,atomic_charges))
+        return H_0[μ,ν] - 0.5*S[μ,ν]*(δϵ_al(basis_fun[μ][4],γ,shell_charges)+
+                                      δϵ_al(basis_fun[ν][4],γ,shell_charges)+
+                                      δΕ_al(basis_fun[μ][1],id,Γ,atomic_charges)+
+                                      δΕ_al(basis_fun[ν][1],id,Γ,atomic_charges))
     end
     dim = size(S)
-    F = Matrix{Float64}(undef,size(S)...)
     for i in 1:dim[1], j in 1:dim[1]
         F[i,j] = F_(i,j,basis_fun,shell_charges,atomic_charges,γ,Γ,H_0,S,id)
     end
-    return F
 end
-function get_P(nelec::Int64,C::Matrix{Float64})
-    dim = size(C)[1]
+function get_P!(P::Matrix{Float64}, nelec::Int64, C::Matrix{Float64})::Float64
+    #ERROR IS SOMEWHERE HERE for the first error ??
+    dim = size(C,1)
     n_occ::Int64 = nelec/2
-    P::Matrix{Float64} = zeros(dim,dim)
+    norm_old::Float64 = norm(P)
+    P .= 0
     for i in 1:dim, j in i:dim
         P[i,j] += C[i,1:n_occ]⋅C[j,1:n_occ]
         P[j,i] = P[i,j]
     end
-    P *= 2
-    return P
+    P .*= 2
+    norm_new::Float64 = norm(P)
+    return abs(norm_new-norm_old)/length(P)
+end
+function get_eigen_from_F(F::Matrix{Float64},S_sqrt_inv::Matrix{Float64})
+    Fp::Matrix{Float64} = S_sqrt_inv' * F * S_sqrt_inv
+    E_orb::Vector{Float64}, Cp::Matrix{Float64} = eigen(Fp,sortby=nothing,permute=false,scale=false)
+    C::Matrix{Float64} = S_sqrt_inv*Cp
+    return E_orb, C, sortperm(E_orb)
+end
+function get_shell_charges!(shell_charges::Vector{Float64},id :: Vector{Int64},
+    std_sh_pop::Matrix{Int64},S::Hermitian{Float64},P::Matrix{Float64},
+    shells :: Vector{Vector{Int64}}, basis_fun::Vector{Vector{Int64}}, λ::Float64=0.4, Δq_max::Float64 =1e-3)
+    nbf = length(basis_fun)
+    new_charges::Vector{Float64} = zeros(length(shell_charges))
+    new_charges .= 0
+    for i in 1:nbf
+        for j in 1:nbf
+            new_charges[basis_fun[i][4]] -= S[i,j]*P[i,j]
+        end
+    end
+    for i in 1:length(shell_charges)
+        new_charges[i] += std_sh_pop[id[shells[i][1]],shells[i][2]]
+    end
+    Δq::Float64 = maximum(abs.(new_charges .- shell_charges))
+    if Δq >= Δq_max
+        shell_charges .= shell_charges .+ λ .* (new_charges .- shell_charges)
+    else
+        shell_charges .= new_charges
+    end
+end
+function get_atomic_charges!(atomic_charges::Vector{Float64},
+    shell_charges::Vector{Float64},shells :: Vector{Vector{Int64}})
+    nsh = length(shell_charges)
+    atomic_charges .= 0
+    for i in 1:nsh
+        atomic_charges[shells[i][1]] += shell_charges[i]
+    end
 end
 end

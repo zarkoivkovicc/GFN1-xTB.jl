@@ -118,6 +118,7 @@
 # atom type 1, shell type 1, atom type 2, shell type 2, KAB
   1  1  1  1  0.96
   3  1  1  1  1.04
+  3  3  1  1  1.04
 # kll' terms per shell pair type. Number of such terms, then, in lines: Shell type l; Shell type l'; kll' (eq. 24)
   6
   1  1  1.85

@@ -41,8 +41,8 @@ function readparams(filename::String)
     return rawdata
 end
 
-function parseline(type::Type, line::AbstractString)
-    return tryparse.(type, split(line))
+function parseline(type::Type, line::AbstractString)::Vector{type}
+    return parse.(type, split(line))
 end
 
 function parsematrix(dim1::Int64, dim2::Int64, rawmatrix::Array{String})
@@ -83,7 +83,7 @@ function parseparams(rawdata::Array{String})
     c_ref = Matrix{Matrix{Float64}}(undef,ntypes,ntypes)
 
     for _ in 1:ntypes*(ntypes+1)/2
-        temp = parseline(Int64, rawdata[linenum+1])[1:2]
+        temp = tryparse.(Int64, split(rawdata[linenum+1]))[1:2]
         index = temp[1],temp[2]
         c_ref[index[1],index[2]] = parsematrix(numrefcn[index[1]], numrefcn[index[2]],
             rawdata[linenum+2:linenum+2+numrefcn[index[1]]])
@@ -100,7 +100,7 @@ function parseparams(rawdata::Array{String})
     linenum += 1 # Go to the next line
     global totnsh = 0 # total number of shells
     while true
-        index, sh, np = parseline(Int64, rawdata[linenum])
+        index, sh, np = tryparse.(Int64, split(rawdata[linenum]))
         if np == length(parseline(Float64, rawdata[linenum+1])) == length(parseline(Float64, rawdata[linenum+2]))
             push!(nprim[index],np)
             push!(shtyp[index],sh)
