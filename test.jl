@@ -1,16 +1,13 @@
 include("modules/io.jl")
-include("modules/constants.jl")
 include("modules/method.jl")
-#import Pkg
-#Pkg.add(["ArgParse", "Memoization"],io=devnull)
-
 using ArgParse, Memoization
-using LinearAlgebra: norm, eigen, Hermitian, Diagonal, ⋅, Transpose
+using LinearAlgebra: norm, eigen, Hermitian, Diagonal, ⋅
 using Printf
-using .Parsers, .PeriodicTable, .Methods
+using .Parsers, .QuantumChem
 charge::Int64 = 0
 λ_damp::Float64 = 0.4
-natoms, elementsym, coordinates = parsexyz("$binpath/tests/data/methanol.xyz")
+maxiter::Int64 = 50
+natoms, elementsym, coordinates = parsexyz("$binpath/tests/data/secbutylamine.xyz")
 
 # Load parameters
 const BORH_TO_Å, AU_TO_EV, indx,
@@ -20,7 +17,7 @@ electroneg, k_en, r_cov, Γ, std_sh_pop, η_al, h_al, k_poli, k_cn_l = loadparam
 id = map( x -> get(indx,x,-1),elementsym) # Each atom gets id of its type
 coordinates  ./= BORH_TO_Å # Convert to angstroms
 r = get_distances(natoms,coordinates)
-basis_fun, shells, shells_bf = get_basisfun_shells(natoms,id,shtyp)
+basis_fun, shells = get_basisfun_shells(natoms,id,shtyp)
 # basis function is represented as (atom,sh_type,orientation,sh_index)
 # shell of an atom is represented as (atom,sh_type)
 nelec = get_nelec(std_sh_pop,shells,id)
@@ -33,30 +30,42 @@ P::Matrix{Float64} = zeros(size(S)...)
 atomic_charges:: Vector{Float64} = zeros(natoms)
 shell_charges:: Vector{Float64} = zeros(length(shells))
 Ee::Float64 = 0
+function damp_charges!(atomic_charges::Vector{Float64},shell_charges::Vector{Float64},
+    new_atomic_charges::Vector{Float64},new_shell_charges::Vector{Float64};
+    λ_damp::Float64,Δq_max::Float64)
+    if maximum(abs.(new_shell_charges .- shell_charges)) >= Δq_max
+        atomic_charges .= atomic_charges .+ λ_damp.*(new_atomic_charges.-atomic_charges)
+        shell_charges .= shell_charges .+ λ_damp.*(new_shell_charges.-shell_charges)
+    else
+        atomic_charges .= new_atomic_charges
+        shell_charges .= new_shell_charges
+    end
+end
 # take care which charges you use for which energy!
 for cycle in 1:50
     print("Cycle number: $cycle \n")
     get_F!(F,shell_charges,atomic_charges,γ_shpairs,Γ,H_0,S,basis_fun,id)
-    global E_orb, C, perm = get_eigen_from_F(F,S_sqrt_inv)
+    E_orb, C, perm = get_eigen_from_F(F,S_sqrt_inv)
     ΔP:: Float64 = get_P!(P,nelec,C[:,perm])
+    new_shell_charges::Vector{Float64} = get_shell_charges(id,std_sh_pop,S,P,shells,basis_fun)
+    new_atomic_charges::Vector{Float64} = get_atomic_charges(natoms,new_shell_charges,shells)
     E1::Float64 = sum(P .* H_0)
     E2::Float64 = 0
     for i in 1:length(shells), j in 1:length(shells)
-        E2 += shell_charges[i]*shell_charges[j]*γ_shpairs[i,j]
+        E2 += new_shell_charges[i]*new_shell_charges[j]*γ_shpairs[i,j]
     end
     E2 /= 2
     E3::Float64 = 0
     for i in 1:natoms
-        E3 += atomic_charges[i]^3*Γ[id[i]]
+        E3 += new_atomic_charges[i]^3*Γ[id[i]]
     end
     E3 /= 3
+    damp_charges!(atomic_charges,shell_charges,new_atomic_charges,new_shell_charges)
     E_prev::Float64 = Ee
     global Ee = E1 + E2 + E3
     ΔE::Float64 = abs(Ee-E_prev)
-    get_shell_charges!(shell_charges,id,std_sh_pop,S,P,shells,basis_fun)
-    get_atomic_charges!(atomic_charges,shell_charges,shells)
-    print("E1 = $E1, E2 = $E2, E3 = $E3, Ee = $Ee \n")
-    print("ΔP = $ΔP, ΔE = $ΔE \n")
+    @printf("Ee = %.8f, E1 = %.6f, E2 = %.6f, E3 = %.6f \n",Ee,E1,E2,E3)
+    @printf("ΔP = %.2e, ΔE = %.2e \n",ΔP,ΔE)
     if ΔP <= 1e-4 && ΔE <= 1e-7
         break
     end

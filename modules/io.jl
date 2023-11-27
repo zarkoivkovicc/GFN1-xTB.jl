@@ -1,6 +1,4 @@
 module Parsers
-include("constants.jl")
-using .PeriodicTable
 export parsexyz, loadparams, binpath
 const global binpath::String = dirname(abspath(PROGRAM_FILE))
 

@@ -1,15 +1,26 @@
-module Methods
+module QuantumChem
 using LinearAlgebra: norm, Hermitian, Diagonal, eigen, ⋅
 using  Memoization: @memoize
-export get_distances, get_E_rep, get_E_disp, get_basisfun_shells, get_S, get_eigen_from_F, get_nelec, get_P!,
-Inv_sqrt, get_H_0, get_γ_abllp, get_F!,get_shell_charges!,get_atomic_charges!
-function get_distances(natoms :: Int64, coords :: Matrix{Float64})
+export get_distances, get_E_rep, get_E_disp, get_basisfun_shells, get_S, get_eigen_from_F,
+get_nelec, get_P!,Inv_sqrt, get_H_0, get_γ_abllp, get_F!,get_shell_charges,get_atomic_charges
+"""
+    get_distances(natoms::Int64, coords::Matrix{Float64})
+    
+    Returns the pairwise distance matrix. Only top upper-right part of the matrix is actually computed.
+
+"""
+function get_distances(natoms::Int64, coords::Matrix{Float64})
     r = Matrix{Float64}(undef,natoms,natoms) #pairwise_distance
     for i in 1:natoms, j in i:natoms
         r[j,i]  = norm(coords[:,j]-coords[:,i])
     end
     return r
 end
+"""
+    get_nelec(std_sh_pop::Matrix{Int64},shells:: Vector{Vector{Int64}},id::Vector{Int64})
+
+    Returns the number of electrons considered in this tight-binding model assuming neutrality.
+"""
 function get_nelec(std_sh_pop::Matrix{Int64},shells:: Vector{Vector{Int64}},id::Vector{Int64})
     nelec::Int64 = 0
     for sh in shells
@@ -17,8 +28,14 @@ function get_nelec(std_sh_pop::Matrix{Int64},shells:: Vector{Vector{Int64}},id::
     end
     return nelec
 end
-function get_E_rep(natoms :: Int64, id :: Vector{Int64}, r :: Matrix{Float64},
-    α :: Vector{Float64}, z_eff :: Vector{Float64}, k_f :: Float64)
+"""
+    get_E_rep(natoms::Int64, id::Vector{Int64}, r::Matrix{Float64},
+    α::Vector{Float64}, z_eff::Vector{Float64}, k_f::Float64)
+
+    Returns zero-order repulsion energy.
+"""
+function get_E_rep(natoms::Int64, id::Vector{Int64}, r::Matrix{Float64},
+    α::Vector{Float64}, z_eff::Vector{Float64}, k_f::Float64)
     E_rep ::Float64 = 0
     for i in 1:natoms, j in i+1:natoms
         E_rep +=
@@ -26,7 +43,12 @@ function get_E_rep(natoms :: Int64, id :: Vector{Int64}, r :: Matrix{Float64},
     end
     return E_rep
 end
-function cn(a::Int64,natoms::Int64, id :: Vector{Int64}, r::Matrix{Float64},sc_radii :: Vector{Float64},k_cn :: Float64)
+"""
+    cn(a::Int64,natoms::Int64, id::Vector{Int64}, r::Matrix{Float64},sc_radii::Vector{Float64},k_cn::Float64)
+
+    Returns the coordination number of a-th atom in the list of atoms.
+"""
+function cn(a::Int64,natoms::Int64, id::Vector{Int64}, r::Matrix{Float64},sc_radii::Vector{Float64},k_cn::Float64)
     res::Float64 = 0
     for i in 1:a-1
         res += (1+ ℯ^(-k_cn*((sc_radii[id[a]]+sc_radii[id[i]])/r[a,i]-1)))^-1
@@ -36,10 +58,18 @@ function cn(a::Int64,natoms::Int64, id :: Vector{Int64}, r::Matrix{Float64},sc_r
     end
     return res
 end
-function get_E_disp(natoms :: Int64, id :: Vector{Int64}, r :: Matrix{Float64},
-    a1 :: Float64, a2 :: Float64, s6 :: Float64, s8 :: Float64, k_cn :: Float64, k_l :: Float64,
-    q_a :: Vector{Float64}, sc_radii :: Vector{Float64}, numrefcn :: Vector{Int64},
-    refcn :: Matrix{Float64}, c_ref :: Matrix{Matrix{Float64}})
+"""
+    get_E_disp(natoms::Int64, id::Vector{Int64}, r::Matrix{Float64},
+    a1::Float64, a2::Float64, s6::Float64, s8::Float64, k_cn::Float64, k_l::Float64,
+    q_a::Vector{Float64}, sc_radii::Vector{Float64}, numrefcn::Vector{Int64},
+    refcn::Matrix{Float64}, c_ref::Matrix{Matrix{Float64}})
+
+    Returns the dispersion energy.
+"""
+function get_E_disp(natoms::Int64, id::Vector{Int64}, r::Matrix{Float64},
+    a1::Float64, a2::Float64, s6::Float64, s8::Float64, k_cn::Float64, k_l::Float64,
+    q_a::Vector{Float64}, sc_radii::Vector{Float64}, numrefcn::Vector{Int64},
+    refcn::Matrix{Float64}, c_ref::Matrix{Matrix{Float64}})
     function f6_damp(r::Float64,a1::Float64,a2::Float64,q_a::Float64,q_b::Float64)
         return r^6/
         (r^6+(a1*(9q_a*q_b)^0.25+a2)^6)
@@ -51,7 +81,7 @@ function get_E_disp(natoms :: Int64, id :: Vector{Int64}, r :: Matrix{Float64},
     function l(k_l::Float64,cn_a::Float64,cn_a_ref::Float64)
         return ℯ^(-k_l*(cn_a - cn_a_ref)^2)
     end
-    function c6(a::Int64,b::Int64,cn_a::Float64,cn_b, refcn :: Matrix{Float64})
+    function c6(a::Int64,b::Int64,cn_a::Float64,cn_b, refcn::Matrix{Float64})
         nom::Float64, denom::Float64 = 0, 0
         if a > b
             a, b = b, a
@@ -63,7 +93,7 @@ function get_E_disp(natoms :: Int64, id :: Vector{Int64}, r :: Matrix{Float64},
         end
         return nom/denom
     end
-    E_disp :: Float64 = 0
+    E_disp::Float64 = 0
     for i in 1:natoms, j in i+1:natoms
         E_disp += -s6*c6(id[j],id[i],cn(j,natoms,id,r,sc_radii,k_cn),cn(i,natoms,id,r,sc_radii,k_cn),refcn)/
         r[j,i]^6*f6_damp(r[j,i],a1,a2,q_a[id[j]],q_a[id[i]])
@@ -72,15 +102,26 @@ function get_E_disp(natoms :: Int64, id :: Vector{Int64}, r :: Matrix{Float64},
     end
     return E_disp
 end
-function get_basisfun_shells(natoms:: Int64, id :: Vector{Int64}, shtyp:: Vector{Vector{Int64}})
+"""
+    get_basisfun_shells(natoms:: Int64, id::Vector{Int64}, shtyp:: Vector{Vector{Int64}})
+    
+    Returns the list of basis functions and list of shells.
+    Each basis function is three component vector:
+        1. number of atom where the basis function is centered
+        2. type of shell the basis function belongs to
+        3. type and orientation of basis function (0:s 1:px 2:py 3:pz)
+        4. number of shell the basis function belongs to
+    Each shell is represented as two component vector:
+        1. number of atom the shell is centered
+        2. type of shell
+"""
+function get_basisfun_shells(natoms:: Int64, id::Vector{Int64}, shtyp:: Vector{Vector{Int64}})
     basis_functions = Vector{Vector{Int64}}()
     shells = Vector{Vector{Int64}}()
-    shells_bf = Vector{Vector{Int64}}()
     indxsh::Int64 = 1
     indxbf::Int64 = 1
     for i in 1:natoms
         for sh in shtyp[id[i]]
-            temp :: Vector{Int64} = [indxbf,]
             if sh == 1 || sh == 2
                 push!(basis_functions,[i,sh,0,indxsh])
                 indxbf += 1
@@ -88,60 +129,74 @@ function get_basisfun_shells(natoms:: Int64, id :: Vector{Int64}, shtyp:: Vector
                 push!(basis_functions,[i,sh,1,indxsh])
                 push!(basis_functions,[i,sh,2,indxsh])
                 push!(basis_functions,[i,sh,3,indxsh])
-                temp = collect(indxbf:indxbf+2)
                 indxbf += 3
             end
             push!(shells,[i,sh])
-            push!(shells_bf,temp)
             indxsh +=1
         end
     end
-    return basis_functions, shells, shells_bf
+    return basis_functions, shells
 end
-function get_S(basis_fun :: Vector{Vector{Int64}},
-    id ::Vector{Int64},
-    shtyp:: Vector{Vector{Int64}},
-    coord :: Matrix{Float64},
-    ζ:: Vector{Vector{Vector{Float64}}},
-    d:: Vector{Vector{Vector{Float64}}})
+"""
+    get_S(basis_fun::Vector{Vector{Int64}},id ::Vector{Int64},shtyp:: Vector{Vector{Int64}},
+    coord::Matrix{Float64},ζ:: Vector{Vector{Vector{Float64}}},d:: Vector{Vector{Vector{Float64}}})
 
-    function ∫_bf_bf(bf1 :: Vector{Int64},bf2 :: Vector{Int64},
-        id ::Vector{Int64},
-        shtyp:: Vector{Vector{Int64}},
-        coord :: Matrix{Float64},
-        ζ:: Vector{Vector{Vector{Float64}}},
-        d:: Vector{Vector{Vector{Float64}}})
-            @memoize function ∫s_s(ζ :: Float64, ξ :: Float64,
-                r1 :: Vector{Float64},r2 :: Vector{Float64})
-                        return ℯ^(-ξ*norm(r1-r2)^2)*(π/ζ)^1.5
-            end
-            function ∫prim_prim(ζ1 :: Float64, ζ2 :: Float64,
-                    r1 :: Vector{Float64},r2 :: Vector{Float64},
-                    typ1 :: Int64, typ2 :: Int64)
-                ζ = ζ1 + ζ2; ξ = ζ1*ζ2/(ζ); r_p = (ζ1*r1 + ζ2*r2)/ζ
-                s_s = ∫s_s(ζ, ξ, r1, r2)
-                if typ1 == typ2 == 0
-                    return s_s
-                elseif typ1 == 0
-                    return (r_p-r2)[typ2]*s_s
-                elseif typ2 == 0
-                    return (r_p-r1)[typ1]*s_s
-                elseif typ1 == typ2
-                    return (r_p-r1)[typ1]*(r_p-r2)[typ2]*s_s + s_s/(2*ζ)
-                else
-                    return (r_p-r1)[typ1]*(r_p-r2)[typ2]*s_s
+    Returns the overlap matrix.
+
+"""
+function get_S(basis_fun::Vector{Vector{Int64}},id ::Vector{Int64},shtyp:: Vector{Vector{Int64}},
+    coord::Matrix{Float64},ζ:: Vector{Vector{Vector{Float64}}},d:: Vector{Vector{Vector{Float64}}})
+
+    """
+    ∫_bf_bf(bf1::Vector{Int64},bf2::Vector{Int64},id ::Vector{Int64},
+        shtyp:: Vector{Vector{Int64}},coord::Matrix{Float64},
+        ζ:: Vector{Vector{Vector{Float64}}},d:: Vector{Vector{Vector{Float64}}})
+
+        Returns the integral between two basis functions.
+    """
+function ∫_bf_bf(bf1::Vector{Int64},bf2::Vector{Int64},id ::Vector{Int64},
+        shtyp:: Vector{Vector{Int64}},coord::Matrix{Float64},
+        ζ:: Vector{Vector{Vector{Float64}}},d:: Vector{Vector{Vector{Float64}}})
+    """
+        ∫s_s(ζ::Float64, ξ::Float64,r1::Vector{Float64},r2::Vector{Float64})
+
+        Returns the integral between two primites of s type. This function is cached.
+    """
+    @memoize function ∫s_s(ζ::Float64, ξ::Float64,r1::Vector{Float64},r2::Vector{Float64})
+                return ℯ^(-ξ*norm(r1-r2)^2)*(π/ζ)^1.5
+    end
+    """
+        ∫prim_prim(ζ1::Float64, ζ2::Float64,r1::Vector{Float64},r2::Vector{Float64},
+            typ1::Int64, typ2::Int64)
+
+        Returns the integral between two primitves.
+    """
+    function ∫prim_prim(ζ1::Float64, ζ2::Float64,r1::Vector{Float64},r2::Vector{Float64},
+                        typ1::Int64, typ2::Int64)
+                    ζ = ζ1 + ζ2; ξ = ζ1*ζ2/(ζ); r_p = (ζ1*r1 + ζ2*r2)/ζ
+                    s_s = ∫s_s(ζ, ξ, r1, r2)
+                    if typ1 == typ2 == 0
+                        return s_s
+                    elseif typ1 == 0
+                        return (r_p-r2)[typ2]*s_s
+                    elseif typ2 == 0
+                        return (r_p-r1)[typ1]*s_s
+                    elseif typ1 == typ2
+                        return (r_p-r1)[typ1]*(r_p-r2)[typ2]*s_s + s_s/(2*ζ)
+                    else
+                        return (r_p-r1)[typ1]*(r_p-r2)[typ2]*s_s
+                    end
                 end
-            end
-        integral :: Float64 = 0
+        integral::Float64 = 0
         indx1 = findfirst(x -> x == bf1[2],shtyp[id[bf1[1]]])
         indx2 = findfirst(x -> x == bf2[2],shtyp[id[bf2[1]]])
         ζ1_ = ζ[id[bf1[1]]][indx1]; ζ2_ = ζ[id[bf2[1]]][indx2]
         d1_ = d[id[bf1[1]]][indx1]; d2_ = d[id[bf2[1]]][indx2]
         for (ζ1,d1) in zip(ζ1_,d1_), (ζ2,d2) in zip(ζ2_,d2_)
-        integral += d1*d2*∫prim_prim(ζ1,ζ2,coord[:,bf1[1]],coord[:,bf2[1]],bf1[3],bf2[3])
+            integral += d1*d2*∫prim_prim(ζ1,ζ2,coord[:,bf1[1]],coord[:,bf2[1]],bf1[3],bf2[3])
         end
         return integral
-        end
+    end
     dim = length(basis_fun)
     S = Matrix{Float64}(undef,dim,dim)
     for i in 1:dim, j in i:dim
@@ -149,23 +204,44 @@ function get_S(basis_fun :: Vector{Vector{Int64}},
     end
     return Hermitian(S)
 end
-function Inv_sqrt(S :: Hermitian{Float64})
+"""
+    Inv_sqrt(S::Hermitian{Float64})
+    Returns S^-1/2 of the matrix S
+"""
+function Inv_sqrt(S::Hermitian{Float64})
     λ, L = eigen(S)
     return L * Diagonal(1 ./ sqrt.(λ)) * L'
 end
-function get_H_0(basis_fun:: Vector{Vector{Int64}},natoms::Int64, r::Matrix{Float64}, id :: Vector{Int64},
-    k_ab :: Dict{Tuple{Int64,Int64,Int64,Int64},Float64},k_ll:: Matrix{Float64},
-    electroneg :: Vector{Float64}, k_en :: Float64, r_cov :: Vector{Float64},h_al::Matrix{Float64},
-    k_poli::Matrix{Float64}, k_cn_l :: Vector{Float64},
-    sc_radii::Vector{Float64},k_cn :: Float64, S :: Hermitian{Float64})
 
-    function zeroh(bf1:: Vector{Int64},bf2 :: Vector{Int64},natoms::Int64, r::Matrix{Float64}, id :: Vector{Int64},
-        k_ab :: Dict{Tuple{Int64,Int64,Int64,Int64},Float64},
-        k_ll:: Matrix{Float64}, electroneg :: Vector{Float64}, k_en :: Float64,
-        r_cov :: Vector{Float64},h_al::Matrix{Float64}, k_poli::Matrix{Float64},
-        k_cn_l :: Vector{Float64},sc_radii::Vector{Float64},k_cn :: Float64, S :: Float64)
-        function Π(bf1:: Vector{Int64},bf2 :: Vector{Int64},r::Matrix{Float64}, id :: Vector{Int64},
-            k_poli::Matrix{Float64},r_cov :: Vector{Float64})
+"""
+    get_H_0(basis_fun:: Vector{Vector{Int64}},natoms::Int64, r::Matrix{Float64}, id::Vector{Int64},
+    k_ab::Dict{Tuple{Int64,Int64,Int64,Int64},Float64},k_ll:: Matrix{Float64},electroneg::Vector{Float64},
+    k_en::Float64, r_cov::Vector{Float64},h_al::Matrix{Float64},k_poli::Matrix{Float64},
+    k_cn_l::Vector{Float64},sc_radii::Vector{Float64},k_cn::Float64,S::Hermitian{Float64})
+
+    Returns zero-order hamlitonian.
+"""
+function get_H_0(basis_fun:: Vector{Vector{Int64}},natoms::Int64, r::Matrix{Float64}, id::Vector{Int64},
+    k_ab::Dict{Tuple{Int64,Int64,Int64,Int64},Float64},k_ll:: Matrix{Float64},electroneg::Vector{Float64},
+    k_en::Float64, r_cov::Vector{Float64},h_al::Matrix{Float64},k_poli::Matrix{Float64},
+    k_cn_l::Vector{Float64},sc_radii::Vector{Float64},k_cn::Float64,S::Hermitian{Float64})
+
+    """
+    zeroh(bf1:: Vector{Int64},bf2::Vector{Int64},natoms::Int64, r::Matrix{Float64},
+        id::Vector{Int64},k_ab::Dict{Tuple{Int64,Int64,Int64,Int64},Float64},k_ll:: Matrix{Float64},
+        electroneg::Vector{Float64}, k_en::Float64,r_cov::Vector{Float64},h_al::Matrix{Float64},
+        k_poli::Matrix{Float64},k_cn_l::Vector{Float64},sc_radii::Vector{Float64},k_cn::Float64,
+        S::Float64)
+
+        Returns the zero-order hamlitonian element between two basis functions.
+    """
+function zeroh(bf1:: Vector{Int64},bf2::Vector{Int64},natoms::Int64, r::Matrix{Float64},
+        id::Vector{Int64},k_ab::Dict{Tuple{Int64,Int64,Int64,Int64},Float64},k_ll:: Matrix{Float64},
+        electroneg::Vector{Float64}, k_en::Float64,r_cov::Vector{Float64},h_al::Matrix{Float64},
+        k_poli::Matrix{Float64},k_cn_l::Vector{Float64},sc_radii::Vector{Float64},k_cn::Float64,
+        S::Float64)
+        function Π(bf1:: Vector{Int64},bf2::Vector{Int64},r::Matrix{Float64}, id::Vector{Int64},
+            k_poli::Matrix{Float64},r_cov::Vector{Float64})
             return (1+k_poli[id[bf1[1]],bf1[2]]*(r[bf2[1],bf1[1]]/(r_cov[id[bf1[1]]]+r_cov[id[bf2[1]]]))^0.5)*
             (1+k_poli[id[bf2[1]],bf2[2]]*(r[bf2[1],bf1[1]]/(r_cov[id[bf1[1]]]+r_cov[id[bf2[1]]]))^0.5)
         end
@@ -197,12 +273,18 @@ function get_H_0(basis_fun:: Vector{Vector{Int64}},natoms::Int64, r::Matrix{Floa
     end
     return Hermitian(H_0)
 end
-function get_γ_abllp(shells :: Vector{Vector{Int64}}, r :: Matrix{Float64},id :: Vector{Int64},
-    η_al :: Matrix{Float64},k_g :: Float64 = 2.0)
+"""
+    get_γ_abllp(shells::Vector{Vector{Int64}}, r::Matrix{Float64},id::Vector{Int64},
+    η_al::Matrix{Float64},k_g::Float64 = 2.0)
+
+    Returns the matrix of coulomb-like law prefactors γ
+"""
+function get_γ_abllp(shells::Vector{Vector{Int64}}, r::Matrix{Float64},id::Vector{Int64},
+    η_al::Matrix{Float64},k_g::Float64 = 2.0)
     dim = length(shells)
     res = Matrix{Float64}(undef,dim,dim)
-    function γ_abllp(sh1 :: Vector{Int64}, sh2 :: Vector{Int64}, r :: Matrix{Float64},id :: Vector{Int64},
-        η_al :: Matrix{Float64},k_g :: Float64 = 2.0)
+    function γ_abllp(sh1::Vector{Int64}, sh2::Vector{Int64}, r::Matrix{Float64},id::Vector{Int64},
+        η_al::Matrix{Float64},k_g::Float64 = 2.0)
         η1 = η_al[id[sh1[1]],sh1[2]]; η2 = η_al[id[sh2[1]],sh2[2]]
         return (r[sh2[1],sh1[1]]^k_g+(0.5*(1/η1 + 1/η2))^k_g)^(-1/k_g)
     end
@@ -211,17 +293,32 @@ function get_γ_abllp(shells :: Vector{Vector{Int64}}, r :: Matrix{Float64},id :
     end
     return res
 end
+
+"""
+    get_F!(F::Matrix{Float64},shell_charges:: Vector{Float64},atomic_charges:: Vector{Float64},
+    γ:: Matrix{Float64},Γ::Vector{Float64},H_0:: Hermitian{Float64},S:: Hermitian{Float64},
+    basis_fun:: Vector{Vector{Int64}},id::Vector{Int64})
+
+    Calculates (in-place) fock matrix F.
+"""
 function get_F!(F::Matrix{Float64},shell_charges:: Vector{Float64},atomic_charges:: Vector{Float64},
     γ:: Matrix{Float64},Γ::Vector{Float64},H_0:: Hermitian{Float64},S:: Hermitian{Float64},
-    basis_fun:: Vector{Vector{Int64}},id :: Vector{Int64})
-    #ERROR PROBABBLY HERE FOR SCF
-    function F_(μ :: Int64, ν :: Int64, basis_fun:: Vector{Vector{Int64}},shell_charges:: Vector{Float64},
+    basis_fun:: Vector{Vector{Int64}},id::Vector{Int64})
+
+    """
+    F_(μ::Int64, ν::Int64, basis_fun:: Vector{Vector{Int64}},shell_charges:: Vector{Float64},
         atomic_charges:: Vector{Float64},γ:: Matrix{Float64},Γ::Vector{Float64},
-        H_0:: Hermitian{Float64},S:: Hermitian{Float64},id :: Vector{Int64})
+        H_0:: Hermitian{Float64},S:: Hermitian{Float64},id::Vector{Int64})
+        
+        Return fock matrix element F[μ,ν], where μ and ν are basis function numbers
+    """
+function F_(μ::Int64, ν::Int64, basis_fun:: Vector{Vector{Int64}},shell_charges:: Vector{Float64},
+        atomic_charges:: Vector{Float64},γ:: Matrix{Float64},Γ::Vector{Float64},
+        H_0:: Hermitian{Float64},S:: Hermitian{Float64},id::Vector{Int64})
         function δϵ_al(sh_indx ::Int64,γ::Matrix{Float64}, shell_charges:: Vector{Float64})
             return γ[sh_indx,:]⋅shell_charges
         end
-        function δΕ_al(a :: Int64,id::Vector{Int64},Γ::Vector{Float64}, atomic_charges:: Vector{Float64})
+        function δΕ_al(a::Int64,id::Vector{Int64},Γ::Vector{Float64}, atomic_charges:: Vector{Float64})
             return Γ[id[a]]*atomic_charges[a]^2
         end
         return H_0[μ,ν] - 0.5*S[μ,ν]*(δϵ_al(basis_fun[μ][4],γ,shell_charges)+
@@ -234,13 +331,18 @@ function get_F!(F::Matrix{Float64},shell_charges:: Vector{Float64},atomic_charge
         F[i,j] = F_(i,j,basis_fun,shell_charges,atomic_charges,γ,Γ,H_0,S,id)
     end
 end
+
+"""
+    get_P!(P::Matrix{Float64}, nelec::Int64, C::Matrix{Float64})::Float64
+
+    Calculates desity matrix from coefficient matrix and returns the change in norm of density matrix.
+"""
 function get_P!(P::Matrix{Float64}, nelec::Int64, C::Matrix{Float64})::Float64
-    #ERROR IS SOMEWHERE HERE for the first error ??
     dim = size(C,1)
     n_occ::Int64 = nelec/2
     norm_old::Float64 = norm(P)
-    P .= 0
     for i in 1:dim, j in i:dim
+        P[i,j] = 0
         P[i,j] += C[i,1:n_occ]⋅C[j,1:n_occ]
         P[j,i] = P[i,j]
     end
@@ -248,39 +350,73 @@ function get_P!(P::Matrix{Float64}, nelec::Int64, C::Matrix{Float64})::Float64
     norm_new::Float64 = norm(P)
     return abs(norm_new-norm_old)/length(P)
 end
+
+"""
+    get_eigen_from_F(F::Matrix{Float64},S_sqrt_inv::Matrix{Float64})
+
+    Returns oribal energies, coefficient matrix and perumatation that sorts
+    the eigenvectors and eigenvalues in the order of raising energies.
+"""
 function get_eigen_from_F(F::Matrix{Float64},S_sqrt_inv::Matrix{Float64})
     Fp::Matrix{Float64} = S_sqrt_inv' * F * S_sqrt_inv
     E_orb::Vector{Float64}, Cp::Matrix{Float64} = eigen(Fp,sortby=nothing,permute=false,scale=false)
     C::Matrix{Float64} = S_sqrt_inv*Cp
     return E_orb, C, sortperm(E_orb)
 end
-function get_shell_charges!(shell_charges::Vector{Float64},id :: Vector{Int64},
-    std_sh_pop::Matrix{Int64},S::Hermitian{Float64},P::Matrix{Float64},
-    shells :: Vector{Vector{Int64}}, basis_fun::Vector{Vector{Int64}}, λ::Float64=0.4, Δq_max::Float64 =1e-3)
+
+"""
+    get_shell_charges(id::Vector{Int64},std_sh_pop::Matrix{Int64},
+    S::Hermitian{Float64},P::Matrix{Float64},shells::Vector{Vector{Int64}},
+    basis_fun::Vector{Vector{Int64}})
+
+    Returns the shell charges vector calculated from the density matrix.
+"""
+function get_shell_charges(id::Vector{Int64},std_sh_pop::Matrix{Int64},
+    S::Hermitian{Float64},P::Matrix{Float64},shells::Vector{Vector{Int64}},
+    basis_fun::Vector{Vector{Int64}})
     nbf = length(basis_fun)
-    new_charges::Vector{Float64} = zeros(length(shell_charges))
-    new_charges .= 0
+    nsh = length(shells)
+    shell_charges::Vector{Float64} = zeros(nsh)
     for i in 1:nbf
         for j in 1:nbf
-            new_charges[basis_fun[i][4]] -= S[i,j]*P[i,j]
+            shell_charges[basis_fun[i][4]] -= S[i,j]*P[i,j]
         end
     end
-    for i in 1:length(shell_charges)
-        new_charges[i] += std_sh_pop[id[shells[i][1]],shells[i][2]]
-    end
-    Δq::Float64 = maximum(abs.(new_charges .- shell_charges))
-    if Δq >= Δq_max
-        shell_charges .= shell_charges .+ λ .* (new_charges .- shell_charges)
-    else
-        shell_charges .= new_charges
-    end
-end
-function get_atomic_charges!(atomic_charges::Vector{Float64},
-    shell_charges::Vector{Float64},shells :: Vector{Vector{Int64}})
-    nsh = length(shell_charges)
-    atomic_charges .= 0
     for i in 1:nsh
-        atomic_charges[shells[i][1]] += shell_charges[i]
+        shell_charges[i] += std_sh_pop[id[shells[i][1]],shells[i][2]]
+    end
+    return shell_charges
+end
+
+"""
+    get_atomic_charges(natoms::Int64,shell_charges::Vector{Float64},shells::Vector{Vector{Int64}})
+
+    Returns the atomic charges calculated from the shell charges.
+"""
+function get_atomic_charges(natoms::Int64,shell_charges::Vector{Float64},shells::Vector{Vector{Int64}})
+    nsh = length(shell_charges)
+    charges::Vector{Float64} = zeros(natoms)
+    for i in 1:nsh
+        charges[shells[i][1]] += shell_charges[i]
+    end
+    return charges
+end
+"""
+    damp_charges!(atomic_charges::Vector{Float64},shell_charges::Vector{Float64},
+    new_atomic_charges::Vector{Float64},new_shell_charges::Vector{Float64};
+    λ_damp::Float64,Δq_max::Float64)
+
+    Updates the charges. Performs damping if necessary.
+"""
+function damp_charges!(atomic_charges::Vector{Float64},shell_charges::Vector{Float64},
+    new_atomic_charges::Vector{Float64},new_shell_charges::Vector{Float64};
+    λ_damp::Float64,Δq_max::Float64)
+    if maximum(abs.(new_shell_charges .- shell_charges)) >= Δq_max
+        atomic_charges .= atomic_charges .+ λ_damp.*(new_atomic_charges.-atomic_charges)
+        shell_charges .= shell_charges .+ λ_damp.*(new_shell_charges.-shell_charges)
+    else
+        atomic_charges .= new_atomic_charges
+        shell_charges .= new_shell_charges
     end
 end
 end
