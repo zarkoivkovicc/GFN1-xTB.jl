@@ -1,0 +1,48 @@
+*** BEGINNING OF THE GFN1-XTB TIGHT BINDING CODE  ***
+*** Reference paper: A Robust and Accurate Tight-Binding Quantum
+Chemical Method for Structures, Vibrational Frequencies, and Noncovalent Interactions of Large
+Molecular Systems Parametrized for All spd-Block Elements (Z = 1 - 86)”, S. Grimme, C.
+Bannwarth and P. Shushkov, J. Chem. Theory Comput. 2017, 13, 1989 - 2009, https://doi.
+org/10.1021/acs.jctc.7b00118. ***
+*** SUCCESFULLY LOADED PARAMETERS FROM A FILE ***
+*** SUCCESFULLY LOADED MOLECULE FROM A FILE ***
+*** SUCCESFULLY CALCULATED ZERO-ORDER REPULSION ENERGY ***
+*** SUCCESFULLY CALCULATED ZERO-ORDER DISPERSION ENERGY ***
+*** SUCCESFULLY GENERATED 8 BASIS FUNCTIONS AND 6 SHELLS  ***
+*** TOTAL NUMBER OF ELECTRONS IS 8  ***
+*** SUCCESFULLY CREATED EVERYTHING, ENTERING SCF...! ***
+ N         Ee            E1          E2          E3          ΔE          ΔP         t      t_tot
+---------------------------------------------------------------------------------------------------
+ 1    -5.72429421    -5.877312    0.152774    0.000244    5.72e+00    5.56e-02    0.000    0.000
+ 2    -5.77962135    -5.859981    0.080268    0.000091    5.53e-02    1.05e-03    0.000    0.000
+ 3    -5.78602469    -5.845771    0.059688    0.000058    6.40e-03    2.53e-04    0.000    0.000
+ 4    -5.78658720    -5.840712    0.054075    0.000050    5.63e-04    6.47e-05    0.000    0.000
+ 5    -5.78663262    -5.839204    0.052523    0.000048    4.54e-05    1.75e-05    0.000    0.000
+ 6    -5.78663620    -5.838774    0.052091    0.000047    3.58e-06    4.84e-06    0.000    0.000
+ 7    -5.78663649    -5.838654    0.051970    0.000047    2.81e-07    1.34e-06    0.000    0.000
+ 8    -5.78663651    -5.838620    0.051936    0.000047    2.19e-08    3.72e-07    0.000    0.000
+*** SCF SUCCESFULLY CONVERGED AFTER 8 ITERATIONS!  ***
+Orbital energies :
+-0.756760 -0.596919 -0.562394 -0.499874 -0.172942 -0.057968  0.204988  0.399425 
+Molecular orbital coefficients :
+Molecular orbital 1 :
+ 0.796345  0.058487  0.058487  0.000000  0.182043  0.011660  0.182043  0.011660 
+Molecular orbital 2 :
+-0.000000 -0.519859  0.519859  0.000000 -0.330976 -0.051122  0.330976  0.051122 
+Molecular orbital 3 :
+ 0.424853 -0.570604 -0.570604  0.000000 -0.205882 -0.053513 -0.205882 -0.053513 
+Molecular orbital 4 :
+-0.000000  0.000000  0.000000  1.000000  0.000000  0.000000  0.000000 -0.000000 
+Molecular orbital 5 :
+-0.401402 -0.126863 -0.126863 -0.000000  0.377023 -0.529990  0.377023 -0.529990 
+Molecular orbital 6 :
+-0.000000 -0.071143  0.071143 -0.000000  0.412508 -0.684896 -0.412508  0.684896 
+Molecular orbital 7 :
+-0.000000  0.629024 -0.629024 -0.000000 -0.805355 -0.313779  0.805355  0.313779 
+Molecular orbital 8 :
+ 0.764917  0.562873  0.562873 -0.000000 -0.693221 -0.489496 -0.693221 -0.489496 
+Atomic charges :
+-0.651146  0.325573  0.325573 
+FINAL SINGLE POINT ENERGY: -5.76093445 
+Energy contributions   Ee: -5.78663651    E_rep: 0.02583979    E_disp: -0.00013773 
+*** PROGRAM TERMINATED NORMALLY ***

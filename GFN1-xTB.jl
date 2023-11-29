@@ -51,5 +51,6 @@ end
 name = cmd_args["name"]; xyz_file = cmd_args["xyz"]; verbosity = cmd_args["verbose"];
 charge = cmd_args["charge"]; maxiter = cmd_args["maxiter"];
 λ_damp = cmd_args["damping"]; params = cmd_args["parameters"]
-
+rm("$name.out", force=true)
+touch("$name.out")
 main(name,xyz_file,verbosity,params,maxiter,λ_damp,charge)

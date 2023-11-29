@@ -359,6 +359,7 @@ end
     the eigenvectors and eigenvalues in the order of raising energies.
 """
 function get_eigen_from_F(F::Matrix{Float64},S_sqrt_inv::Matrix{Float64})
+
     Fp::Matrix{Float64} = S_sqrt_inv' * F * S_sqrt_inv
     E_orb::Vector{Float64}, Cp::Matrix{Float64} = eigen(Fp,sortby=nothing,permute=false,scale=false)
     C::Matrix{Float64} = S_sqrt_inv*Cp
@@ -378,10 +379,8 @@ function get_shell_charges(id::Vector{Int64},std_sh_pop::Matrix{Int64},
     nbf = length(basis_fun)
     nsh = length(shells)
     shell_charges::Vector{Float64} = zeros(nsh)
-    for i in 1:nbf
-        for j in 1:nbf
-            shell_charges[basis_fun[i][4]] -= S[i,j]*P[i,j]
-        end
+    for i in 1:nbf, j in 1:nbf
+        shell_charges[basis_fun[i][4]] -= S[i,j]*P[i,j]
     end
     for i in 1:nsh
         shell_charges[i] += std_sh_pop[id[shells[i][1]],shells[i][2]]

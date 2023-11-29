@@ -1,37 +1,85 @@
 module GFN1_xTB
 include("io.jl")
 include("method.jl")
-using .Parsers, .QuantumChem
+using .Parsers, .QuantumChem, .Output
 using Printf
 export main
-function main(output:: String,xyz_file:: String, verbose::Bool,parameters::String,
-    maxiter::Int64, λ_damp::Float64, charge::Int64)
-    # Parse information from xyz file
-    natoms, elementsym, coordinates = parsexyz(xyz_file)
-    # Parse information from parameters file
-    BORH_TO_Å, AU_TO_EV, indx,
-    k_f, α, z_eff, a1, a2, s6, s8, k_cn, k_l, q_a, sc_radii, numrefcn, refcn, c_ref,
-    nprim, shtyp, ζ, d, k_ab, nk_ll, k_ll,
-    electroneg, k_en, r_cov, Γ, std_sh_pop, η_al, h_al, k_poli, k_cn_l = loadparams("$binpath/parameters/$parameters")
-    # Each atom will be assigned an id, the index of the atom type in all paramters
-    id = map( x -> get(indx,x,-1),elementsym)
-    coordinates  ./= BORH_TO_Å # Convert to angstroms
-    r = get_distances(natoms,coordinates)
-    E_0_rep::Float64 = get_E_rep(natoms,id,r,α,z_eff,k_f)
-    E_0_disp::Float64 = get_E_disp(natoms,id,r,a1,a2,s6,s8,k_cn,k_l,q_a,sc_radii,numrefcn,refcn,c_ref)
-    # Generate all basis functions and shells. Check docs of get_basisfun_shells for more info
-    basis_fun, shells = get_basisfun_shells(natoms,id,shtyp)
-    nelec = get_nelec(std_sh_pop,shells,id) - charge
-    S = get_S(basis_fun,id,shtyp,coordinates,ζ,d)
-    S_sqrt_inv = Inv_sqrt(S)
-    H_0 = get_H_0(basis_fun,natoms,r,id,k_ab,k_ll,electroneg,k_en,r_cov,h_al,k_poli,k_cn_l,sc_radii,k_cn,S)
-    γ_shpairs = get_γ_abllp(shells,r,id,η_al)
-    F::Matrix{Float64} = zeros(size(S)...)
-    P::Matrix{Float64} = zeros(size(S)...)
-    atomic_charges:: Vector{Float64} = zeros(natoms)
-    shell_charges:: Vector{Float64} = zeros(length(shells))
-    Ee::Float64 = E1::Float64 = E2::Float64 = E3::Float64 = E_prev::Float64 = ΔE::Float64 = 0
-    for _ in 1:maxiter
+function main(name:: String,xyz_file:: String, verbose::Bool,parameters::String,
+maxiter::Int64, λ_damp::Float64, charge::Int64)
+printline("$name.out","BEGINNING OF THE GFN1-XTB TIGHT BINDING CODE ")
+printline("$name.out","Reference paper: A Robust and Accurate Tight-Binding Quantum
+Chemical Method for Structures, Vibrational Frequencies, and Noncovalent Interactions of Large
+Molecular Systems Parametrized for All spd-Block Elements (Z = 1 - 86)”, S. Grimme, C.
+Bannwarth and P. Shushkov, J. Chem. Theory Comput. 2017, 13, 1989 - 2009, https://doi.
+org/10.1021/acs.jctc.7b00118.")
+# Parse information from parameters file
+BORH_TO_Å, AU_TO_EV, indx,
+k_f, α, z_eff, a1, a2, s6, s8, k_cn, k_l, q_a, sc_radii, numrefcn, refcn, c_ref,
+nprim, shtyp, ζ, d, k_ab, nk_ll, k_ll,
+electroneg, k_en, r_cov, Γ, std_sh_pop, η_al, h_al, k_poli, k_cn_l = loadparams("$binpath/parameters/$parameters")
+printline("$name.out","SUCCESFULLY LOADED PARAMETERS FROM A FILE")
+# Parse information from xyz file
+natoms, elementsym, coordinates = parsexyz(xyz_file)
+printline("$name.out","SUCCESFULLY LOADED MOLECULE FROM A FILE")
+# Each atom will be assigned an id, the index of the atom type in all paramters
+id = map( x -> get(indx,x,-1),elementsym)
+coordinates  ./= BORH_TO_Å # Convert to angstroms
+r = get_distances(natoms,coordinates)
+E_0_rep::Float64 = get_E_rep(natoms,id,r,α,z_eff,k_f)
+printline("$name.out","SUCCESFULLY CALCULATED ZERO-ORDER REPULSION ENERGY")
+if verbose == true
+    open("$name.out","a") do file
+        @printf(file,"E_rep: %.8f \n",E_0_rep)
+    end
+end
+E_0_disp::Float64 = get_E_disp(natoms,id,r,a1,a2,s6,s8,k_cn,k_l,q_a,sc_radii,numrefcn,refcn,c_ref)
+printline("$name.out","SUCCESFULLY CALCULATED ZERO-ORDER DISPERSION ENERGY")
+if verbose == true
+    open("$name.out","a") do file
+        @printf(file,"E_disp: %.8f \n",E_0_disp)
+    end
+end
+# Generate all basis functions and shells. Check docs of get_basisfun_shells for more info
+basis_fun, shells = get_basisfun_shells(natoms,id,shtyp)
+nbasisfun::Int64 = length(basis_fun); nshells::Int64 = length(shells)
+nelec = get_nelec(std_sh_pop,shells,id) - charge
+printline("$name.out","SUCCESFULLY GENERATED $nbasisfun BASIS FUNCTIONS AND $nshells SHELLS ")
+printline("$name.out","TOTAL NUMBER OF ELECTRONS IS $nelec ")
+S = get_S(basis_fun,id,shtyp,coordinates,ζ,d)
+S_sqrt_inv = Inv_sqrt(S)
+if verbose == true
+    printline("$name.out","SUCCESFULLY CALCULATED OVERLAP MATRIX ")
+    printmatrix("$name.out",S,"Overlap matrix S: ","%9.6f")
+    printline("$name.out","SUCCESFULLY CALCULATED SQUARE ROOT OF INVERSE OF OVERLAP MATRIX S^-1/2: ")
+    printmatrix("$name.out",S_sqrt_inv,"Overlap matrix S: ","%9.6f")
+end
+H_0 = get_H_0(basis_fun,natoms,r,id,k_ab,k_ll,electroneg,k_en,r_cov,h_al,k_poli,k_cn_l,sc_radii,k_cn,S)
+if verbose == true
+    printline("$name.out","SUCCESFULLY CALCULATED ZERO-ORDER HAMILTONIAN MATRIX ")
+    printmatrix("$name.out",H_0,"Zero-order Hamiltonian H_0: ","%9.6f")
+end
+γ_shpairs = get_γ_abllp(shells,r,id,η_al)
+if verbose == true
+    printline("$name.out","SUCCESFULLY CALCULATED MATRIX OF COULOMB-LIKE FACTORS γ ")
+    printmatrix("$name.out",γ_shpairs,"Matrix of Coulomb factors γ: ","%9.6f")
+end
+F::Matrix{Float64} = zeros(size(S)...)
+P::Matrix{Float64} = zeros(size(S)...)
+E_orb::Vector{Float64} = zeros(length(basis_fun))
+perm = Vector{Int64}(undef,length(basis_fun))
+C::Matrix{Float64} = zeros(size(S)...)
+atomic_charges:: Vector{Float64} = zeros(natoms)
+shell_charges:: Vector{Float64} = zeros(length(shells))
+Ee::Float64 = E1::Float64 = E2::Float64 = E3::Float64 = E_prev::Float64 = E::Float64 = 0 
+ΔE::Float64 = ΔP::Float64 = Δt::Float64 = ΔT::Float64 = 0
+nsteps::Int64 = 0
+printline("$name.out","SUCCESFULLY CREATED EVERYTHING, ENTERING SCF...!")
+open("$name.out","a") do file
+    println(file," N         Ee            E1          E2          E3          ΔE          ΔP         t      t_tot")
+    println(file,"---------------------------------------------------------------------------------------------------")
+end
+for step in 1:maxiter
+    Δt = @elapsed begin
         get_F!(F,shell_charges,atomic_charges,γ_shpairs,Γ,H_0,S,basis_fun,id)
         E_orb, C, perm = get_eigen_from_F(F,S_sqrt_inv)
         ΔP = get_P!(P,nelec,C[:,perm])
@@ -49,14 +97,35 @@ function main(output:: String,xyz_file:: String, verbose::Bool,parameters::Strin
         end
         E3 /= 3
         damp_charges!(atomic_charges,shell_charges,new_atomic_charges,new_shell_charges,λ_damp,1e-3)
+        #display(E_orb[perm])
+        #display(C[:,perm])
+        #display(P)
+        #display(atomic_charges)
         E_prev = Ee
         Ee = E1 + E2 + E3
         ΔE = abs(Ee-E_prev)
-        @printf("Ee = %.8f, E1 = %.6f, E2 = %.6f, E3 = %.6f \n",Ee,E1,E2,E3)
-        @printf("ΔP = %.2e, ΔE = %.2e \n",ΔP,ΔE)
-        if ΔP <= 1e-4 && ΔE <= 1e-7
-            break
-        end
+    end
+    ΔT += Δt
+    printscf("$name.out",step,Ee,E1,E2,E3,ΔE,ΔP,Δt,ΔT)
+    if ΔP <= 1e-4 && ΔE <= 1e-7
+        nsteps += step
+        break
     end
 end
+if nsteps != 0
+    printline("$name.out","SCF SUCCESFULLY CONVERGED AFTER $nsteps ITERATIONS! ")
+else
+    printline("$name.out","WARNING: SCF DID NOT CONVERGE AFTER $nsteps ITERATIONS ")
+end
+printvector("$name.out",E_orb[perm],"Orbital energies","%9.6f")
+printorbitals("$name.out",C[:,perm],"%9.6f")
+printvector("$name.out",atomic_charges,"Atomic charges","%9.6f")
+E = Ee + E_0_rep + E_0_disp
+open("$name.out","a") do file
+    @printf(file,"FINAL SINGLE POINT ENERGY: %.8f \n",E)
+    @printf(file,"Energy contributions   Ee: %.8f    E_rep: %.8f    E_disp: %.8f \n",Ee,E_0_rep,E_0_disp)
+end
+printline("$name.out","PROGRAM TERMINATED NORMALLY")
+end
+
 end

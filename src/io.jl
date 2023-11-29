@@ -1,4 +1,5 @@
 module Parsers
+using Printf
 export parsexyz, loadparams, binpath
 const global binpath::String = dirname(abspath(PROGRAM_FILE))
 
@@ -161,7 +162,60 @@ function loadparams(filename="$binpath/parameters/parameters_best.dat"::String)
     return parseparams(rawdata)
 end
 end
+
 module Output
 using Printf
-export printmatrix, printscf
+using LinearAlgebra: Hermitian
+export printmatrix, printscf, printline, printvector, printorbitals
+GeneralMatrix = Union{Matrix{Float64},Hermitian{Float64}}
+function printmatrix(filename::String, matrix::GeneralMatrix, name::String, form::String)
+    f = Printf.Format("$form ")
+    dims = size(matrix)
+    open(filename,"a") do file
+        println(file,"$name :")
+            for i in 1:dims[1]
+                for j in 1:dims[2]
+                    print(file,Printf.format(f,matrix[i,j]))
+                end
+                print(file,'\n')
+            end
+    end
+end
+function printvector(filename::String, vector::Vector, name::String, form::String)
+    f = Printf.Format("$form ")
+    open(filename,"a") do file
+    println(file,"$name :")
+    for i in eachindex(vector)
+        print(file,Printf.format(f,vector[i]))
+    end
+    print(file,'\n')
+    end
+end
+function printline(filename::String,name::String)
+    open(filename,"a") do file
+        println(file,"*** $name ***")
+    end
+end
+function printscf(filename::String,
+    step::Int64, Ee::Float64, E1::Float64, E2::Float64, E3::Float64,
+    ΔE::Float64, ΔP::Float64, Δt::Float64, ΔT::Float64)
+    open(filename,"a") do file
+        println(file,@sprintf("%2d    %.8f    %.6f    %.6f    %.6f    %.2e    %.2e    %.3f    %.3f",
+        step,Ee,E1,E2,E3,ΔE,ΔP,Δt,ΔT))
+    end
+end
+function printorbitals(filename::String,coeff::Matrix{Float64},form::String)
+    f = Printf.Format("$form ")
+    dims = size(coeff)
+    open(filename,"a") do file
+        println(file,"Molecular orbital coefficients :")
+            for i in 1:dims[1]
+                println(file,"Molecular orbital $i :")
+                for j in 1:dims[2]
+                    print(file,Printf.format(f,coeff[j,i]))
+                end
+                print(file,'\n')
+            end
+    end
+end
 end
