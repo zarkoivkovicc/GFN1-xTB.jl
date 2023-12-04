@@ -166,9 +166,9 @@ end
 module Output
 using Printf
 using LinearAlgebra: Hermitian
-export printmatrix, printscf, printline, printvector, printorbitals
+export appendf
 GeneralMatrix = Union{Matrix{Float64},Hermitian{Float64}}
-function printmatrix(filename::String, matrix::GeneralMatrix, name::String, form::String)
+function appendf(filename::String, matrix::GeneralMatrix, name::String, form::String)
     f = Printf.Format("$form ")
     dims = size(matrix)
     open(filename,"a") do file
@@ -181,7 +181,7 @@ function printmatrix(filename::String, matrix::GeneralMatrix, name::String, form
             end
     end
 end
-function printvector(filename::String, vector::Vector, name::String, form::String)
+function appendf(filename::String, vector::Vector, name::String, form::String)
     f = Printf.Format("$form ")
     open(filename,"a") do file
     println(file,"$name :")
@@ -191,12 +191,12 @@ function printvector(filename::String, vector::Vector, name::String, form::Strin
     print(file,'\n')
     end
 end
-function printline(filename::String,name::String)
+function appendf(filename::String,name::String)
     open(filename,"a") do file
         println(file,"*** $name ***")
     end
 end
-function printscf(filename::String,
+function appendf(filename::String,
     step::Int64, Ee::Float64, E1::Float64, E2::Float64, E3::Float64,
     ΔE::Float64, ΔP::Float64, Δt::Float64, ΔT::Float64)
     open(filename,"a") do file
@@ -204,7 +204,7 @@ function printscf(filename::String,
         step,Ee,E1,E2,E3,ΔE,ΔP,Δt,ΔT))
     end
 end
-function printorbitals(filename::String,coeff::Matrix{Float64},form::String)
+function appendf(filename::String,coeff::Matrix{Float64},form::String)
     f = Printf.Format("$form ")
     dims = size(coeff)
     open(filename,"a") do file
