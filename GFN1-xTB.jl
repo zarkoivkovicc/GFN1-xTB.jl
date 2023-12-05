@@ -1,4 +1,4 @@
-include("src/io.jl")
+#include("src/io.jl")
 include("src/main.jl")
 using .GFN1_xTB
 using ArgParse
@@ -34,6 +34,11 @@ function parse_commandline()
             help= "Damping factor. Defualt: 0.4"
             default = 0.4
             arg_type = Float64
+        "--tolernace"
+            help= "Convergence criteria of energy for SCF cycles. Default: 1e-7
+            The threshold for change in the norm of the density matrix is 100 times the threshold for change in energy."
+            default = 1e-7
+            arg_type = Float64
     end
 
     return parse_args(s)
@@ -49,9 +54,9 @@ if !endswith(cmd_args["parameters"],".dat")
     cmd_args["parameters"] = cmd_args["parameters"] * ".dat"
 end
 name = cmd_args["name"]; xyz_file = cmd_args["xyz"]; verbosity = cmd_args["verbose"];
-charge = cmd_args["charge"]; maxiter = cmd_args["maxiter"];
+charge = cmd_args["charge"]; maxiter = cmd_args["maxiter"]; ΔE_min = cmd_args["tolernace"]
 λ_damp = cmd_args["damping"]; params = cmd_args["parameters"]
 out::String = "$name.out"
 rm(out, force=true)
 touch(out)
-main(out,xyz_file,verbosity,params,maxiter,λ_damp,charge)
+main(out,xyz_file,verbosity,params,maxiter,λ_damp,charge,ΔE_min)

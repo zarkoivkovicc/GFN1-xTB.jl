@@ -1,8 +1,41 @@
 module Parsers
 using Printf
 export parsexyz, loadparams, binpath
-const global binpath::String = dirname(abspath(PROGRAM_FILE))
-
+struct Parameters
+    BORH_TO_Å::Float64
+    AU_TO_EV::Float64
+    indx::Dict{String,Int64}
+    k_f::Float64
+    α::Vector{Float64}
+    z_eff::Vector{Float64}
+    a1::Float64
+    a2::Float64
+    s6::Float64
+    s8::Float64
+    k_cn::Float64
+    k_l::Float64
+    q_a::Vector{Float64}
+    sc_radii::Vector{Float64}
+    numrefcn::Vector{Int64}
+    refcn::Matrix{Float64}
+    c_ref::Matrix{Matrix{Float64}}
+    nprim::Vector{Vector{Int64}}
+    shtyp::Vector{Vector{Int64}}
+    ζ::Vector{Vector{Vector{Float64}}}
+    d::Vector{Vector{Vector{Float64}}}
+    k_ab::Dict{Tuple{Int64,Int64,Int64,Int64},Float64}
+    nk_ll::Int64
+    k_ll::Matrix{Float64}
+    electroneg::Vector{Float64}
+    k_en::Float64
+    r_cov::Vector{Float64}
+    Γ::Vector{Float64}
+    std_sh_pop::Matrix{Int64}
+    η_al::Matrix{Float64}
+    h_al::Matrix{Float64}
+    k_poli::Matrix{Float64}
+    k_cn_l::Vector{Float64}
+end
 """
     parsexyz(filename::String)::Tuple{Int64,Vector{String},Matrix{Float64}}
 
@@ -145,19 +178,19 @@ function parseparams(rawdata::Array{String})
         η_al[index[1],index[2]], h_al[index[1],index[2]], k_poli[index[1],index[2]] = parse.(Float64, temp[2:end])
     end
     h_al = h_al ./ AU_TO_EV
-    return BORH_TO_Å, AU_TO_EV, indx,
+    return Parameters(BORH_TO_Å, AU_TO_EV, indx,
     k_f, α, z_eff, a1, a2, s6, s8, k_cn, k_l, q_a, sc_radii, numrefcn, refcn, c_ref,
     nprim, shtyp, ζ, d, k_ab, nk_ll, k_ll,
-    electroneg, k_en, r_cov, Γ, std_sh_pop, η_al, h_al, k_poli, k_cn_l
+    electroneg, k_en, r_cov, Γ, std_sh_pop, η_al, h_al, k_poli, k_cn_l)
 end
 
 """
 Reads data from the parameters file and outputs parsed parameters.
 
-Input: filename::String (default: "parameters/parameters.dat")
+Input: filename::String
 Output: parameters::Tuple
 """
-function loadparams(filename="$binpath/parameters/parameters_best.dat"::String)
+function loadparams(filename::String)
     rawdata = readparams(filename)
     return parseparams(rawdata)
 end
