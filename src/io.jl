@@ -19,12 +19,10 @@ struct Parameters
     numrefcn::Vector{Int64}
     refcn::Matrix{Float64}
     c_ref::Matrix{Matrix{Float64}}
-    nprim::Vector{Vector{Int64}}
     shtyp::Vector{Vector{Int64}}
     ζ::Vector{Vector{Vector{Float64}}}
     d::Vector{Vector{Vector{Float64}}}
     k_ab::Dict{Tuple{Int64,Int64,Int64,Int64},Float64}
-    nk_ll::Int64
     k_ll::Matrix{Float64}
     electroneg::Vector{Float64}
     k_en::Float64
@@ -180,8 +178,7 @@ function parseparams(rawdata::Array{String})
     h_al = h_al ./ AU_TO_EV
     return Parameters(BORH_TO_Å, AU_TO_EV, indx,
     k_f, α, z_eff, a1, a2, s6, s8, k_cn, k_l, q_a, sc_radii, numrefcn, refcn, c_ref,
-    nprim, shtyp, ζ, d, k_ab, nk_ll, k_ll,
-    electroneg, k_en, r_cov, Γ, std_sh_pop, η_al, h_al, k_poli, k_cn_l)
+    shtyp, ζ, d, k_ab, k_ll,electroneg, k_en, r_cov, Γ, std_sh_pop, η_al, h_al, k_poli, k_cn_l)
 end
 
 """
@@ -206,12 +203,13 @@ function appendf(filename::String, matrix::GeneralMatrix, name::String, form::St
     dims = size(matrix)
     open(filename,"a") do file
         println(file,"$name :")
-            for i in 1:dims[1]
-                for j in 1:dims[2]
-                    print(file,Printf.format(f,matrix[i,j]))
-                end
-                print(file,'\n')
+        for i in 1:dims[1]
+            for j in 1:dims[2]
+                print(file,Printf.format(f,matrix[i,j]))
             end
+            print(file,'\n')
+        end
+        print(file,'\n')
     end
 end
 function appendf(filename::String, vector::Vector, name::String, form::String)
@@ -221,7 +219,7 @@ function appendf(filename::String, vector::Vector, name::String, form::String)
     for i in eachindex(vector)
         print(file,Printf.format(f,vector[i]))
     end
-    print(file,'\n')
+    print(file,"\n\n")
     end
 end
 function appendf(filename::String,name::String)
@@ -237,18 +235,19 @@ function appendf(filename::String,
         step,Ee,E1,E2,E3,ΔE,ΔP,Δt,ΔT))
     end
 end
-function appendf(filename::String,coeff::Matrix{Float64},form::String)
+function appendf(filename::String, coeff::Matrix{Float64}, E_orb::Vector{Float64}, form::String)
     f = Printf.Format("$form ")
     dims = size(coeff)
     open(filename,"a") do file
         println(file,"Molecular orbital coefficients :")
-            for i in 1:dims[1]
-                println(file,"Molecular orbital $i :")
-                for j in 1:dims[2]
-                    print(file,Printf.format(f,coeff[j,i]))
-                end
-                print(file,'\n')
+        for i in 1:dims[1]
+            E::String = @sprintf("%.8f",E_orb[i])
+            println(file,"Molecular orbital $i with energy E= $E :")
+            for j in 1:dims[2]
+                print(file,Printf.format(f,coeff[j,i]))
             end
+            print(file,"\n\n")
+        end
     end
 end
 end

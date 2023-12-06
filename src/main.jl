@@ -81,11 +81,22 @@ perm = Vector{Int64}(undef,length(basis_fun))
 C::Matrix{Float64} = zeros(size(S)...)
 atomic_charges:: Vector{Float64} = zeros(natoms)
 shell_charges:: Vector{Float64} = zeros(length(shells))
-
 Ee::Float64 = E1::Float64 = E2::Float64 = E3::Float64 = E_prev::Float64 = E::Float64 = 0 
 ΔE::Float64 = ΔP::Float64 = Δt::Float64 = ΔT::Float64 = 0
-ΔP_min::Float64 = ΔE_min*100; nsteps::Int64 = 0
+ΔP_min::Float64 = ΔE_min*1e3; nsteps::Int64 = 0
 
+get_F!(F,shell_charges,atomic_charges,γ_shpairs,H_0,S,basis_fun,id,params)
+E_orb, C, perm = get_eigen_from_F(F,S_sqrt_inv)
+ΔP = get_P!(P,nelec,C[:,perm])
+new_shell_charges = get_shell_charges(id,S,P,shells,basis_fun,params)
+new_atomic_charges = get_atomic_charges(natoms,new_shell_charges,shells)
+if verbose == true
+    appendf(out,"Initial orbital coefficients ")
+    appendf(out,C[:,perm],E_orb[perm],"%9.6f")
+    appendf(out,E_orb[perm],"Initial orbital energies in hartree","%9.6f")
+    appendf(out,P,"Initial density matrix: ","%9.6f")
+    appendf(out,new_atomic_charges,"Atomic charges from inital density matrix","%9.6f")
+end
 appendf(out,"SUCCESFULLY CREATED EVERYTHING, ENTERING SCF...!")
 open(out,"a") do file
     println(file," N         Ee            E1          E2          E3          ΔE          ΔP         t      t_tot")
@@ -93,11 +104,6 @@ open(out,"a") do file
 end
 for step in 1:maxiter
     Δt = @elapsed begin
-        get_F!(F,shell_charges,atomic_charges,γ_shpairs,H_0,S,basis_fun,id,params)
-        E_orb, C, perm = get_eigen_from_F(F,S_sqrt_inv)
-        ΔP = get_P!(P,nelec,C[:,perm])
-        new_shell_charges = get_shell_charges(id,S,P,shells,basis_fun,params)
-        global new_atomic_charges = get_atomic_charges(natoms,new_shell_charges,shells)
         E1 = sum(P .* H_0)
         E2 = 0
         for i in eachindex(shells), j in eachindex(shells)
@@ -109,14 +115,15 @@ for step in 1:maxiter
             E3 += new_atomic_charges[i]^3*params.Γ[id[i]]
         end
         E3 /= 3
-        damp_charges!(atomic_charges,shell_charges,new_atomic_charges,new_shell_charges,λ_damp,Δq_max=1e-3)
-        #display(E_orb[perm])
-        #display(C[:,perm])
-        #display(P)
-        #display(atomic_charges)
         E_prev = Ee
         Ee = E1 + E2 + E3
         ΔE = abs(Ee-E_prev)
+        damp_charges!(atomic_charges,shell_charges,new_atomic_charges,new_shell_charges,λ_damp,Δq_max=1e-3)
+        get_F!(F,shell_charges,atomic_charges,γ_shpairs,H_0,S,basis_fun,id,params)
+        E_orb, C, perm = get_eigen_from_F(F,S_sqrt_inv)
+        ΔP = get_P!(P,nelec,C[:,perm])
+        new_shell_charges = get_shell_charges(id,S,P,shells,basis_fun,params)
+        new_atomic_charges = get_atomic_charges(natoms,new_shell_charges,shells)
     end
     ΔT += Δt
     appendf(out,step,Ee,E1,E2,E3,ΔE,ΔP,Δt,ΔT)
@@ -130,8 +137,9 @@ if nsteps != 0
 else
     appendf(out,"WARNING: SCF DID NOT CONVERGE AFTER $nsteps ITERATIONS ")
 end
-appendf(out,E_orb[perm],"Orbital energies","%9.6f")
-appendf(out,C[:,perm],"%9.6f")
+appendf(out,C[:,perm],E_orb[perm],"%9.6f")
+appendf(out,E_orb[perm],"Orbital energies in hartree","%9.6f")
+appendf(out,E_orb[perm].*params.AU_TO_EV,"Orbital energies in eV","%9.6f")
 appendf(out,new_atomic_charges,"Atomic charges","%9.6f")
 E = Ee + E_0_rep + E_0_disp
 open(out,"a") do file

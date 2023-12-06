@@ -21,9 +21,9 @@ end
     end
     @test out1[10] == out2[10] #E_rep
     @test out1[12] == out2[12] #E_disp
-    @test out1[17:52] == out2[17:52] #Initial qunatities
-    @test testscf(out1[56:63],out2[56:63]) #SCF
-    @test out1[64:end] == out2[64:end] #Final quantities
+    @test out1[17:101] == out2[17:101] #Initial qunatities
+    @test testscf(out1[102:109],out2[102:109]) #SCF
+    @test out1[110:end] == out2[110:end] #Final quantities
     rm("water.out")
 end
 @testset "methanol" begin
@@ -37,9 +37,9 @@ end
     end
     @test out1[10] == out2[10] #E_rep
     @test out1[12] == out2[12] #E_disp
-    @test out1[17:85] == out2[17:85] #Initial qunatities
-    @test testscf(out1[86:94],out2[86:94]) #SCF
-    @test out1[95:end] == out2[95:end] #Final quantities
+    @test out1[17:163] == out2[17:163] #Initial qunatities
+    @test testscf(out1[164:172],out2[164:172]) #SCF
+    @test out1[173:end] == out2[173:end] #Final quantities
     rm("methanol.out")
 end
 @testset "glucose" begin
@@ -53,9 +53,9 @@ end
     end
     @test out1[10] == out2[10] #E_rep
     @test out1[12] == out2[12] #E_disp
-    @test out1[17:289] == out2[17:289] #Initial qunatities
-    @test testscf(out1[290:299],out2[290:299]) #SCF
-    @test out1[300:end] == out2[300:end] #Final quantities
+    @test out1[17:591] == out2[17:591] #Initial qunatities
+    @test testscf(out1[592:601],out2[592:601]) #SCF
+    @test out1[602:end] == out2[602:end] #Final quantities
     rm("glucose.out")
 end
 @testset "co" begin
@@ -69,9 +69,9 @@ end
     end
     @test out1[10] == out2[10] #E_rep
     @test out1[12] == out2[12] #E_disp
-    @test out1[17:53] == out2[17:53] #Initial qunatities
-    @test testscf(out1[54:65],out2[54:65]) #SCF
-    @test out1[66:end] == out2[66:end] #Final quantities
+    @test out1[17:99] == out2[17:99] #Initial qunatities
+    @test testscf(out1[100:110],out2[100:110]) #SCF
+    @test out1[111:end] == out2[111:end] #Final quantities
     rm("co.out")
 end
 @testset "methanol" begin
@@ -85,9 +85,9 @@ end
     end
     @test out1[10] == out2[10] #E_rep
     @test out1[12] == out2[12] #E_disp
-    @test out1[17:85] == out2[17:85] #Initial qunatities
-    @test testscf(out1[86:94],out2[86:94]) #SCF
-    @test out1[95:end] == out2[95:end] #Final quantities
+    @test out1[17:163] == out2[17:163] #Initial qunatities
+    @test testscf(out1[164:172],out2[164:172]) #SCF
+    @test out1[173:end] == out2[173:end] #Final quantities
     rm("methanol.out")
 end
 @testset "methane" begin
@@ -101,9 +101,9 @@ end
     end
     @test out1[10] == out2[10] #E_rep
     @test out1[12] == out2[12] #E_disp
-    @test out1[17:71] == out2[17:71] #Initial qunatities
-    @test testscf(out1[72:75],out2[72:75]) #SCF
-    @test out1[76:end] == out2[76:end] #Final quantities
+    @test out1[17:133] == out2[17:133] #Initial qunatities
+    @test testscf(out1[134:137],out2[134:137]) #SCF
+    @test out1[138:end] == out2[138:end] #Final quantities
     rm("methane.out")
 end
 @testset "secbutylamine" begin
@@ -117,8 +117,8 @@ end
     end
     @test out1[10] == out2[10] #E_rep
     @test out1[12] == out2[12] #E_disp
-    @test out1[17:183] == out2[17:183] #Initial qunatities
-    @test testscf(out1[184:191],out2[184:191]) #SCF
-    @test out1[192:end] == out2[192:end] #Final quantities
+    @test out1[17:365] == out2[17:365] #Initial qunatities
+    @test testscf(out1[366:373],out2[366:373]) #SCF
+    @test out1[374:end] == out2[374:end] #Final quantities
     rm("secbutylamine.out")
 end
