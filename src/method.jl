@@ -321,15 +321,14 @@ end
 function get_P!(P::Matrix{Float64}, nelec::Int64, C::Matrix{Float64})::Float64
     dim = size(C,1)
     n_occ::Int64 = nelec/2
-    norm_old::Float64 = norm(P)
+    oldP::Matrix{Float64} = copy(P)
     for i in 1:dim, j in i:dim
         P[i,j] = 0
         P[i,j] += C[i,1:n_occ]⋅C[j,1:n_occ]
         P[j,i] = P[i,j]
     end
     P .*= 2
-    norm_new::Float64 = norm(P)
-    return abs(norm_new-norm_old)/length(P)
+    return norm(P-oldP)/length(P)
 end
 
 """

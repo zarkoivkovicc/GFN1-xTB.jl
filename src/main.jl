@@ -6,7 +6,7 @@ using Printf
 export main,binpath
 const global binpath::String = dirname(dirname(@__FILE__))
 function main(out:: String,xyz_file:: String, verbose::Bool,parameters::String,
-maxiter::Int64, λ_damp::Float64, charge::Int64, ΔE_min::Float64)
+maxiter::Int64, λ_damp::Float64, charge::Int64, ΔE_min::Float64, ΔP_min::Float64)
 
 appendf(out,"THE GFN1-XTB TIGHT BINDING PROGRAM STARTED ")
 appendf(out,"Reference paper: A Robust and Accurate Tight-Binding Quantum
@@ -80,7 +80,7 @@ atomic_charges:: Vector{Float64} = zeros(natoms)
 shell_charges:: Vector{Float64} = zeros(length(shells))
 Ee::Float64 = E1::Float64 = E2::Float64 = E3::Float64 = E_prev::Float64 = 0 
 ΔE::Float64 = ΔP::Float64 = Δt::Float64 = ΔT::Float64 = 0
-ΔP_min::Float64 = ΔE_min*1e3; nsteps::Int64 = 0
+nsteps::Int64 = 0
 
 get_F!(F,shell_charges,atomic_charges,γ_shpairs,H_0,S,basis_fun,id,params)
 E_orb, C, perm = get_eigen_from_F(F,S_sqrt_inv)
@@ -132,7 +132,7 @@ end
 if nsteps != 0
     appendf(out,"SCF SUCCESFULLY CONVERGED AFTER $nsteps ITERATIONS! ")
 else
-    appendf(out,"WARNING: SCF DID NOT CONVERGE AFTER $nsteps ITERATIONS ")
+    appendf(out,"WARNING: SCF DID NOT CONVERGE AFTER $maxiter ITERATIONS ")
 end
 appendf(out,C[:,perm],E_orb[perm],"%9.6f")
 appendf(out,E_orb[perm],"Orbital energies in hartree","%9.6f")

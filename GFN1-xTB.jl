@@ -35,9 +35,12 @@ function parse_commandline()
             default = 0.4
             arg_type = Float64
         "--tolerance"
-            help= "Convergence criteria of energy for SCF cycles. Default: 1e-7
-            The threshold for change in the norm of the density matrix is 1e3 times the threshold for change in energy."
+            help= "Convergence criteria for energy for SCF cycles. Default: 1e-7"
             default = 1e-7
+            arg_type = Float64
+        "--ptolerance"
+            help= "Convergence criteria for the average RMSD of the density matrix elements. Defualt: 1e-3"
+            default = 1e-3
             arg_type = Float64
     end
 
@@ -55,8 +58,8 @@ if !endswith(cmd_args["parameters"],".dat")
 end
 name = cmd_args["name"]; xyz_file = cmd_args["xyz"]; verbosity = cmd_args["verbose"];
 charge = cmd_args["charge"]; maxiter = cmd_args["maxiter"]; ΔE_min = cmd_args["tolerance"]
-λ_damp = cmd_args["damping"]; params = cmd_args["parameters"]
+λ_damp = cmd_args["damping"]; params = cmd_args["parameters"]; ΔP_min = cmd_args["ptolerance"]
 out::String = "$name.out"
 rm(out, force=true)
 touch(out)
-main(out,xyz_file,verbosity,params,maxiter,λ_damp,charge,ΔE_min)
+main(out,xyz_file,verbosity,params,maxiter,λ_damp,charge,ΔE_min,ΔP_min)
