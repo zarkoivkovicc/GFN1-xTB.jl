@@ -76,12 +76,9 @@ end
 # Initiate all matrices that are going to be used
 F::Matrix{Float64} = zeros(size(S)...)
 P::Matrix{Float64} = zeros(size(S)...)
-E_orb::Vector{Float64} = zeros(length(basis_fun))
-perm = Vector{Int64}(undef,length(basis_fun))
-C::Matrix{Float64} = zeros(size(S)...)
 atomic_charges:: Vector{Float64} = zeros(natoms)
 shell_charges:: Vector{Float64} = zeros(length(shells))
-Ee::Float64 = E1::Float64 = E2::Float64 = E3::Float64 = E_prev::Float64 = E::Float64 = 0 
+Ee::Float64 = E1::Float64 = E2::Float64 = E3::Float64 = E_prev::Float64 = 0 
 ΔE::Float64 = ΔP::Float64 = Δt::Float64 = ΔT::Float64 = 0
 ΔP_min::Float64 = ΔE_min*1e3; nsteps::Int64 = 0
 
@@ -141,7 +138,7 @@ appendf(out,C[:,perm],E_orb[perm],"%9.6f")
 appendf(out,E_orb[perm],"Orbital energies in hartree","%9.6f")
 appendf(out,E_orb[perm].*params.AU_TO_EV,"Orbital energies in eV","%9.6f")
 appendf(out,new_atomic_charges,"Atomic charges","%9.6f")
-E = Ee + E_0_rep + E_0_disp
+E::Float64 = Ee + E_0_rep + E_0_disp
 open(out,"a") do file
     @printf(file,"FINAL SINGLE POINT ENERGY: %.8f \n",E)
     @printf(file,"Energy contributions   Ee: %.8f    E_rep: %.8f    E_disp: %.8f \n",Ee,E_0_rep,E_0_disp)

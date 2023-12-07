@@ -45,6 +45,7 @@ function parsexyz(filename::String)::Tuple{Int64,Vector{String},Matrix{Float64}}
     elements = Vector{String}(undef, natoms)
     coordinates = Matrix{Float64}(undef, 3, natoms)
     for atom in 1:natoms
+                                                    #RegEx for multiple spaces or multiple tabs
         line = split(strip(replace(xyzfile[2+atom], r"\t{1,}|\s{2,}" => ' ')))
         elements[atom] = line[1]
         coordinates[:, atom] = parse.(Float64, line[2:end])
@@ -52,14 +53,15 @@ function parsexyz(filename::String)::Tuple{Int64,Vector{String},Matrix{Float64}}
     return natoms, elements, coordinates
 end
 """
-    This internal function that returns list of cleaned lines. If only serves to prepare parameters for parsing.
+    Internal function that returns list of cleaned lines. If only serves to prepare parameters for parsing.
 """
 function readparams(filename::String)
     rawdata = String[]
     lines = eachline(filename)
     for line in lines
         endline = occursin('#', line) ? findfirst('#', line) - 1 : length(line)
-        cleanline = strip(replace(line[1:endline], r"\t{1,}|\s{2,}" => ' ')) #RegEx for multiple spaces or multiple tabs
+                                                #RegEx for multiple spaces or multiple tabs
+        cleanline = strip(replace(line[1:endline], r"\t{1,}|\s{2,}" => ' '))
         if !isempty(cleanline)
             push!(rawdata, cleanline)
         end

@@ -293,7 +293,7 @@ function get_F!(F::Matrix{Float64}, shell_charges::Vector{Float64}, atomic_charg
         
         Return fock matrix element F[μ,ν], where μ and ν are basis function numbers
     """
-function F_(μ::Int64, ν::Int64, basis_fun::Vector{Vector{Int64}},shell_charges::Vector{Float64},
+    function F_(μ::Int64, ν::Int64, basis_fun::Vector{Vector{Int64}},shell_charges::Vector{Float64},
         atomic_charges::Vector{Float64},γ::Matrix{Float64},Γ::Vector{Float64},
         H_0::Hermitian{Float64},S::Hermitian{Float64},id::Vector{Int64})
         function δϵ_al(sh_indx::Int64,γ::Matrix{Float64}, shell_charges::Vector{Float64})
@@ -308,8 +308,8 @@ function F_(μ::Int64, ν::Int64, basis_fun::Vector{Vector{Int64}},shell_charges
                                       δΕ_al(basis_fun[ν][1],id,Γ,atomic_charges))
     end
     dim = size(S)
-    for i in 1:dim[1], j in 1:dim[1]
-        F[i,j] = F_(i,j,basis_fun,shell_charges,atomic_charges,γ,Γ,H_0,S,id)
+    for i in 1:dim[1], j in i:dim[1]
+        F[i,j] = F[j,i] = F_(i,j,basis_fun,shell_charges,atomic_charges,γ,Γ,H_0,S,id)
     end
 end
 
