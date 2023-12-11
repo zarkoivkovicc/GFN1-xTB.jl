@@ -1,5 +1,5 @@
 module Parsers
-using Printf
+using Printf, Serialization
 export parsexyz, loadparams, binpath
 struct Parameters
     BORH_TO_Å::Float64
@@ -190,8 +190,17 @@ Input: filename::String
 Output: parameters::Tuple
 """
 function loadparams(filename::String)
-    rawdata = readparams(filename)
-    return parseparams(rawdata)
+    name = splitext(filename)[1]
+    if isfile("$name.par")
+        params = deserialize("$name.par")
+    else
+        rawdata = readparams(filename)
+        params = parseparams(rawdata)
+        open("$name.par","w") do file
+            serialize(file,params)
+        end
+    end
+    return params
 end
 end
 
